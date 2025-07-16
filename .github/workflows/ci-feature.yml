@@ -1,0 +1,41 @@
+name: 🚀 Feature Branch Validation
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+
+jobs:
+  validate:
+    name: ✅ Validate Feature Branch
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🔍 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: 📦 Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 8
+        run_install: false
+    
+    - name: 📥 Install Backend Dependencies
+      run: |
+        pnpm install --filter backend --no-frozen-lockfile
+    
+    - name: 🧪 Run Backend Tests
+      run: |
+        pnpm --filter backend run test
+    
+    - name: ✅ Tests Passed
+      run: echo "✅ Feature branch validation successful! SonarCloud will handle quality gate."

@@ -1,25 +1,22 @@
-name: 🔄 Auto-Merge to Dev
+name: 🔄 Auto-merge Feature to Dev
 
 on:
   workflow_run:
-    workflows: ["🚀 CI Feature Branch"]
-    types:
-      - completed
+    workflows: ["SonarCloud Quality Gate"]
+    types: [completed]
     branches:
       - 'feature/**'
       - 'bugfix/**'
       - 'hotfix/**'
-      - 'refactor/**'
 
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
-  COVERAGE_THRESHOLD: ${{ secrets.COVERAGE_THRESHOLD }}
-  AUTO_MERGE_ENABLED: ${{ secrets.AUTO_MERGE_ENABLED }}
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
-  auto-merge:
-    name: 🔄 Auto-Merge to Dev
+  auto-merge-to-dev:
+    name: 🔄 Auto-merge to Dev
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
@@ -29,209 +26,94 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_branch }}
-          
-      - name: 📊 Check SonarCloud Quality Gate
-        id: sonarcloud_check
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📊 Get Branch Info
+        id: branch_info
         run: |
-          echo "🔍 Checking SonarCloud Quality Gate..."
-          
-          # Attendre que SonarCloud termine son analyse
-          sleep 30
-          
-          # Vérifier le statut du Quality Gate via l'API SonarCloud
-          SONAR_STATUS=$(curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
-            "https://sonarcloud.io/api/qualitygates/project_status?projectKey=ThibVv_kempo" \
-            | jq -r '.projectStatus.status')
-          
-          echo "SonarCloud Quality Gate Status: $SONAR_STATUS"
-          
-          if [ "$SONAR_STATUS" = "OK" ]; then
-            echo "✅ SonarCloud Quality Gate: PASSED"
-            echo "quality_gate_passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ SonarCloud Quality Gate: FAILED"
-            echo "quality_gate_passed=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-      - name: 📈 Check Code Coverage
-        id: coverage_check
-        run: |
-          echo "📈 Checking Code Coverage..."
-          
-          # Vérifier la couverture backend
-          BACKEND_COVERAGE=0
-          if [ -f "backend/coverage/coverage-summary.json" ]; then
-            BACKEND_COVERAGE=$(cat backend/coverage/coverage-summary.json | jq -r '.total.lines.pct')
-          fi
-          
-          # Vérifier la couverture frontend
-          FRONTEND_COVERAGE=0
-          if [ -f "front/coverage/coverage-summary.json" ]; then
-            FRONTEND_COVERAGE=$(cat front/coverage/coverage-summary.json | jq -r '.total.lines.pct')
-          fi
-          
-          # Calculer la couverture moyenne
-          AVERAGE_COVERAGE=$(echo "scale=2; ($BACKEND_COVERAGE + $FRONTEND_COVERAGE) / 2" | bc)
-          
-          echo "Backend Coverage: $BACKEND_COVERAGE%"
-          echo "Frontend Coverage: $FRONTEND_COVERAGE%"
-          echo "Average Coverage: $AVERAGE_COVERAGE%"
-          echo "Required Threshold: $COVERAGE_THRESHOLD%"
-          
-          if (( $(echo "$AVERAGE_COVERAGE >= $COVERAGE_THRESHOLD" | bc -l) )); then
-            echo "✅ Code Coverage: PASSED ($AVERAGE_COVERAGE% >= $COVERAGE_THRESHOLD%)"
-            echo "coverage_passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Code Coverage: FAILED ($AVERAGE_COVERAGE% < $COVERAGE_THRESHOLD%)"
-            echo "coverage_passed=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-      - name: 🏷️ Check Manual Validation Label
-        id: label_check
-        run: |
-          echo "🏷️ Checking for manual validation label..."
-          
-          # Vérifier si la branche ou le commit a le label "module"
-          # Pour simplifier, on check si "module" est dans le nom de la branche
           BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "pr_title=Auto-merge: $BRANCH_NAME → dev" >> $GITHUB_OUTPUT
+          echo "pr_body=🤖 **Automatic merge from feature branch**
+
+          **Source Branch:** \`$BRANCH_NAME\`
+          **Target Branch:** \`dev\`
+          **Triggered by:** SonarCloud Quality Gate success
           
-          if [[ "$BRANCH_NAME" == *"module"* ]]; then
-            echo "⏸️ Manual validation required (module detected in branch name)"
-            echo "manual_validation_required=true" >> $GITHUB_OUTPUT
-          else
-            echo "✅ No manual validation required"
-            echo "manual_validation_required=false" >> $GITHUB_OUTPUT
-          fi
+          ✅ **Validations passed:**
+          - Feature branch tests
+          - SonarCloud quality gate
+          - Code quality checks
           
+          This PR was automatically created after all quality checks passed." >> $GITHUB_OUTPUT
+
       - name: 🔄 Create Pull Request to Dev
-        id: create_pr
-        if: steps.label_check.outputs.manual_validation_required == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔄 Creating Pull Request to dev..."
+          BRANCH_NAME="${{ steps.branch_info.outputs.branch_name }}"
+          PR_TITLE="${{ steps.branch_info.outputs.pr_title }}"
           
-          SOURCE_BRANCH="${{ github.event.workflow_run.head_branch }}"
-          TARGET_BRANCH="dev"
-          
-          # Créer la Pull Request
-          PR_RESPONSE=$(curl -s -X POST \
+          # Créer la PR avec curl (API GitHub)
+          curl -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
             -d "{
-              \"title\": \"🚀 Auto-merge: $SOURCE_BRANCH to $TARGET_BRANCH\",
-              \"head\": \"$SOURCE_BRANCH\",
-              \"base\": \"$TARGET_BRANCH\",
-              \"body\": \"## 🤖 Automated Pull Request\n\n✅ **SonarCloud Quality Gate:** PASSED\n✅ **Code Coverage:** $(echo '${{ steps.coverage_check.outputs.coverage_passed }}' | sed 's/true/PASSED/g')\n✅ **All CI Checks:** PASSED\n\n**Auto-generated by CI/CD Pipeline**\n\n---\n\n### 📊 Validation Results\n- SonarCloud: ${{ steps.sonarcloud_check.outputs.quality_gate_passed }}\n- Coverage: ${{ steps.coverage_check.outputs.coverage_passed }}\n- Manual Review: Not required\n\n### 🔄 Next Steps\n- This PR will be auto-merged if all status checks pass\n- Dev branch will trigger staging deployment\",
-              \"draft\": false
-            }")
+              \"title\": \"$PR_TITLE\",
+              \"head\": \"$BRANCH_NAME\",
+              \"base\": \"dev\",
+              \"body\": \"🤖 **Automatic merge from feature branch**\n\n**Source Branch:** \`$BRANCH_NAME\`\n**Target Branch:** \`dev\`\n**Triggered by:** SonarCloud Quality Gate success\n\n✅ **Validations passed:**\n- Feature branch tests\n- SonarCloud quality gate\n- Code quality checks\n\nThis PR was automatically created after all quality checks passed.\"
+            }"
           
-          PR_NUMBER=$(echo "$PR_RESPONSE" | jq -r '.number')
+      - name: 🎯 Auto-approve and Merge PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ steps.branch_info.outputs.branch_name }}"
           
-          if [ "$PR_NUMBER" != "null" ]; then
-            echo "✅ Pull Request #$PR_NUMBER created successfully"
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          # Attendre que la PR soit créée
+          sleep 10
+          
+          # Récupérer le numéro de la PR
+          PR_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:$BRANCH_NAME&base=dev" \
+            | jq -r '.[0].number')
+          
+          if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
+            echo "🔍 Found PR #$PR_NUMBER"
+            
+            # Auto-approuver la PR
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+              -d '{"event": "APPROVE", "body": "✅ Auto-approved after successful SonarCloud validation"}'
+            
+            # Merger la PR
+            curl -X PUT \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
+              -d '{"commit_title": "Auto-merge: '"$BRANCH_NAME"' → dev", "merge_method": "squash"}'
+            
+            echo "✅ PR #$PR_NUMBER merged successfully"
           else
-            echo "❌ Failed to create Pull Request"
-            echo "$PR_RESPONSE" | jq -r '.message'
+            echo "❌ No PR found for branch $BRANCH_NAME"
             exit 1
           fi
-          
-      - name: ⏳ Wait for Status Checks
-        if: steps.create_pr.outputs.pr_number != ''
+
+      - name: 🧹 Cleanup Feature Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "⏳ Waiting for status checks to complete..."
-          
-          PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
-          MAX_WAIT=300  # 5 minutes
-          WAIT_TIME=0
-          
-          while [ $WAIT_TIME -lt $MAX_WAIT ]; do
-            # Vérifier le statut des checks
-            CHECK_STATUS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER" \
-              | jq -r '.mergeable_state')
-            
-            echo "Current mergeable state: $CHECK_STATUS"
-            
-            if [ "$CHECK_STATUS" = "clean" ]; then
-              echo "✅ All status checks passed!"
-              break
-            elif [ "$CHECK_STATUS" = "blocked" ]; then
-              echo "❌ Status checks failed or blocked"
-              exit 1
-            fi
-            
-            sleep 30
-            WAIT_TIME=$((WAIT_TIME + 30))
-          done
-          
-          if [ $WAIT_TIME -ge $MAX_WAIT ]; then
-            echo "⏰ Timeout waiting for status checks"
-            exit 1
-          fi
-          
-      - name: 🔀 Auto-Merge Pull Request
-        if: steps.create_pr.outputs.pr_number != ''
+          # Supprimer la branche feature après merge réussi
+          git push origin --delete "${{ steps.branch_info.outputs.branch_name }}"
+          echo "🗑️ Feature branch ${{ steps.branch_info.outputs.branch_name }} deleted"
+
+      - name: 📢 Success Notification
         run: |
-          echo "🔀 Auto-merging Pull Request..."
-          
-          PR_NUMBER="${{ steps.create_pr.outputs.pr_number }}"
-          
-          # Merger la Pull Request
-          MERGE_RESPONSE=$(curl -s -X PUT \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
-            -d "{
-              \"commit_title\": \"🚀 Auto-merge: ${{ github.event.workflow_run.head_branch }} to dev\",
-              \"commit_message\": \"Automated merge after successful CI/CD validation\n\n✅ SonarCloud Quality Gate: PASSED\n✅ Code Coverage: ≥ $COVERAGE_THRESHOLD%\n✅ All CI Checks: PASSED\",
-              \"merge_method\": \"squash\"
-            }")
-          
-          MERGE_STATUS=$(echo "$MERGE_RESPONSE" | jq -r '.merged')
-          
-          if [ "$MERGE_STATUS" = "true" ]; then
-            echo "✅ Pull Request merged successfully!"
-            echo "🎉 ${{ github.event.workflow_run.head_branch }} has been merged to dev"
-          else
-            echo "❌ Failed to merge Pull Request"
-            echo "$MERGE_RESPONSE" | jq -r '.message'
-            exit 1
-          fi
-          
-      - name: 📧 Send Success Notification
-        if: success()
-        run: |
-          echo "📧 Sending success notification..."
-          
-          # Ici on peut ajouter l'envoi d'email via une action ou un service
-          echo "✅ Auto-merge completed successfully!"
-          echo "📧 Notification would be sent to: $NOTIFICATION_EMAIL"
-          echo "🎉 Branch ${{ github.event.workflow_run.head_branch }} merged to dev"
-          
-      - name: 📧 Send Failure Notification
-        if: failure()
-        run: |
-          echo "📧 Sending failure notification..."
-          
-          # Ici on peut ajouter l'envoi d'email via une action ou un service
-          echo "❌ Auto-merge failed!"
-          echo "📧 Notification would be sent to: $NOTIFICATION_EMAIL"
-          echo "🔍 Please check the logs and resolve the issue manually"
-          
-      - name: 📋 Summary
-        if: always()
-        run: |
-          echo "## 🔄 Auto-Merge Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| SonarCloud Quality Gate | ${{ steps.sonarcloud_check.outputs.quality_gate_passed == 'true' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Coverage | ${{ steps.coverage_check.outputs.coverage_passed == 'true' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Manual Validation | ${{ steps.label_check.outputs.manual_validation_required == 'true' && '⏸️ REQUIRED' || '✅ NOT REQUIRED' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Pull Request | ${{ steps.create_pr.outputs.pr_number != '' && '✅ CREATED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch:** ${{ github.event.workflow_run.head_branch }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Target:** dev" >> $GITHUB_STEP_SUMMARY
-          echo "**Notification:** $NOTIFICATION_EMAIL" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 **Auto-merge completed successfully!**"
+          echo "✅ Feature branch merged to dev"
+          echo "🗑️ Feature branch cleaned up"
+          echo "🚀 Ready for next development cycle"

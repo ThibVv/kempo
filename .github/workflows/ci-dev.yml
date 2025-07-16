@@ -1,0 +1,50 @@
+name: 🚀 CI Dev Branch
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  validate-dev:
+    name: 🧪 Validate Dev Branch
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 🔍 Checkout Code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: 📦 Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 8
+        run_install: false
+    
+    - name: 📥 Install Backend Dependencies
+      run: |
+        pnpm install --filter backend --no-frozen-lockfile
+    
+    - name: 📥 Install Frontend Dependencies
+      run: |
+        cd front
+        npm install
+    
+    - name: 🧪 Run Backend Tests
+      run: |
+        pnpm --filter backend run test
+    
+    - name: 🧪 Run Frontend Tests
+      run: |
+        cd front
+        npm run test -- --coverage --watchAll=false
+    
+    - name: ✅ Dev Branch Validated
+      run: echo "✅ Dev branch validation successful!"
