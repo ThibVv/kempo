@@ -26,6 +26,7 @@ jobs:
       uses: pnpm/action-setup@v3
       with:
         version: 8
+        run_install: false
     
     - name: Cache Backend Dependencies
       uses: actions/cache@v3
@@ -50,7 +51,7 @@ jobs:
     - name: Install Backend Dependencies
       run: |
         cd backend
-        pnpm install
+        pnpm install --no-frozen-lockfile
     
     - name: Install Frontend Dependencies
       run: |
