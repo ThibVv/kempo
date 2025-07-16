@@ -21,12 +21,36 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 8
+    
+    - name: Cache Backend Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          backend/node_modules
+          ~/.pnpm-store
+        key: ${{ runner.os }}-backend-pnpm-${{ hashFiles('backend/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-backend-pnpm-
+    
+    - name: Cache Frontend Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          front/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-frontend-npm-${{ hashFiles('front/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-frontend-npm-
     
     - name: Install Backend Dependencies
       run: |
         cd backend
-        npm ci
+        pnpm install
     
     - name: Install Frontend Dependencies
       run: |
@@ -36,7 +60,7 @@ jobs:
     - name: Run Backend Tests with Coverage
       run: |
         cd backend
-        npm run test:coverage || echo "Backend tests completed"
+        pnpm run test:coverage || echo "Backend tests completed"
     
     - name: Run Frontend Tests with Coverage
       run: |
