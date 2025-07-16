@@ -75,3 +75,4 @@ jobs:
         args: >
           -Dsonar.projectKey=ThibVv_kempo
           -Dsonar.organization=thibvv
+          -Dsonar.qualitygate.wait=false
