@@ -1,0 +1,28 @@
+{
+  "version": "1.2.0",
+  "name": "Kempo CI/CD Pipeline",
+  "description": "Version stable avec pipeline CI/CD complet",
+  "release_date": "2025-07-16",
+  "features": [
+    "Pipeline CI/CD professionnel",
+    "Auto-merge workflow",
+    "SonarCloud integration",
+    "Multi-environment deployment",
+    "Automated testing",
+    "Quality gates"
+  ],
+  "workflows": [
+    "ci-feature.yml",
+    "ci-dev.yml", 
+    "ci-production.yml",
+    "pr-validation.yml",
+    "sonarcloud.yml",
+    "auto-merge-to-dev.yml"
+  ],
+  "requirements": {
+    "code_coverage": ">=80%",
+    "sonarcloud_quality_gate": "PASSED",
+    "all_tests": "PASSED"
+  },
+  "production_ready": true
+}
