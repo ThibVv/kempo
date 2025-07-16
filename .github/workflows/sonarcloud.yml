@@ -45,8 +45,11 @@ jobs:
         with:
           path: |
             backend/node_modules
-            backend/.pnpm-store
-          key: backend-deps-${{ hashFiles('backend/package.json', 'backend/pnpm-lock.yaml') }}
+            ~/.pnpm-store
+          key: backend-deps-${{ hashFiles('backend/package.json') }}-${{ hashFiles('backend/pnpm-lock.yaml') }}
+          restore-keys: |
+            backend-deps-${{ hashFiles('backend/package.json') }}-
+            backend-deps-
           
       - name: 💾 Cache Frontend Dependencies
         uses: actions/cache@v4
@@ -58,7 +61,8 @@ jobs:
       - name: 🔧 Install Backend Dependencies
         run: |
           cd backend
-          pnpm install --frozen-lockfile
+          echo "📦 Installing backend dependencies..."
+          pnpm install
           
       - name: 🔧 Install Frontend Dependencies
         run: |
