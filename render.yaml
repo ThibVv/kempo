@@ -1,13 +1,12 @@
 services:
-  # Backend API Service
+  # Backend uniquement pour test
   - type: web
-    name: kempo-app-backend
+    name: kempo-backend-test
     env: node
     region: frankfurt
     plan: starter
-    buildCommand: yarn install --network-timeout 100000
-    startCommand: npx tsx src/main.ts
-    rootDir: backend
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run start
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,7 +21,7 @@ services:
       - key: ENCRYPTION_SALT
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://kempo-app-frontend.onrender.com
+        value: "*"
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
@@ -32,24 +31,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: MAILJET_API_KEY
-        value: 9763291a8f09533d6b778f61f93f7ffe
+        value: YOUR_MAILJET_API_KEY_HERE
       - key: MAILJET_SECRET_KEY
-        value: 8ea553808966d52807a76d2ced10ea48
+        value: YOUR_MAILJET_SECRET_KEY_HERE
     healthCheckPath: /health
-
-  # Frontend React Service
-  - type: web
-    name: kempo-app-frontend
-    env: node
-    region: frankfurt
-    plan: starter
-    buildCommand: yarn install --network-timeout 100000 && yarn build
-    startCommand: npx serve -s build -l 3000
-    rootDir: front
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: REACT_APP_API_URL
-        value: https://kempo-app-backend.onrender.com
-      - key: PORT
-        value: 3000
