@@ -31,13 +31,11 @@ jobs:
     
     - name: 📥 Install Backend Dependencies
       run: |
-        cd backend
-        pnpm install --no-frozen-lockfile
+        pnpm install --filter backend --no-frozen-lockfile
     
     - name: 🧪 Run Backend Tests
       run: |
-        cd backend
-        pnpm run test
+        pnpm --filter backend run test
     
     - name: ✅ Tests Passed
       run: echo "✅ Feature branch validation successful! SonarCloud will handle quality gate."

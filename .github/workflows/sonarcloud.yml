@@ -50,8 +50,7 @@ jobs:
     
     - name: Install Backend Dependencies
       run: |
-        cd backend
-        pnpm install --no-frozen-lockfile
+        pnpm install --filter backend --no-frozen-lockfile
     
     - name: Install Frontend Dependencies
       run: |
@@ -60,8 +59,7 @@ jobs:
     
     - name: Run Backend Tests with Coverage
       run: |
-        cd backend
-        pnpm run test:coverage || echo "Backend tests completed"
+        pnpm --filter backend run test:coverage || echo "Backend tests completed"
     
     - name: Run Frontend Tests with Coverage
       run: |
