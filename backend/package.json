@@ -6,7 +6,7 @@
     "watch": "pnpm cli --watch --",
     "dev": "pnpm watch src/main.ts",
     "build": "tsc || echo 'Build completed'",
-    "start": "node --no-warnings=ExperimentalWarning --experimental-strip-types --experimental-transform-types src/main.ts",
+    "start": "node --loader tsx/esm src/main.ts",
     "test-server": "node src/main.ts",
     "create-admin": "pnpm cli src/createAdmin.ts",
     "migration:create": "mikro-orm migration:create",

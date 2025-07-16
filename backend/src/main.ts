@@ -16,7 +16,6 @@ import {
 } from './middleware/security.middleware.ts';
 import { webApplicationFirewall, wafStats } from './middleware/waf.middleware.ts';
 import ConfigService from './config/config.service.ts';
-import ServerService from './services/server.service.ts';
 
 // Charge les variables d'environnement depuis le fichier .env
 dotenv.config();
@@ -52,13 +51,18 @@ httpApp.get('/admin/waf-stats', wafStats);
 // Enregistrement des routes
 const app = registerAppRoutes(httpApp);
 
-// Démarrage du serveur sécurisé
-const serverService = new ServerService(app);
-await serverService.start();
+// Configuration du serveur
+const configService = ConfigService.getInstance();
+const port = parseInt(process.env.PORT || '3001');
+const host = process.env.HOST || '0.0.0.0';
+
+console.log(`🚀 Server starting on ${host}:${port}`);
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
 
 // Affichage des instructions HTTPS pour la production
 if (ConfigService.isProduction()) {
-  ServerService.showNginxHttpsInstructions();
+  console.log('🔒 Production mode - Configure HTTPS with reverse proxy');
 }
 
 console.log('🛡️  Security features enabled:');
@@ -73,3 +77,12 @@ console.log('   ✅ bcrypt password hashing');
 console.log('   ✅ JWT authentication');
 console.log('');
 console.log('🔍 WAF Stats available at: /admin/waf-stats');
+
+// Démarrage du serveur
+serve({
+  fetch: app.fetch,
+  port: port,
+  hostname: host,
+});
+
+console.log(`✅ Server running on http://${host}:${port}`);
