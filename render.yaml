@@ -40,7 +40,6 @@ services:
   - type: web
     name: kempo-frontend
     env: static
-    plan: starter
     buildCommand: cd front && npm ci && npm run build
     staticPublishPath: ./front/build
     envVars:
