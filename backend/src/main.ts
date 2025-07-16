@@ -20,8 +20,17 @@ import ConfigService from './config/config.service.ts';
 // Charge les variables d'environnement depuis le fichier .env
 dotenv.config();
 
-const orm = await MikroORM.init(config);
-const em = orm.em;
+let orm: MikroORM | null = null;
+let em: EntityManager | null = null;
+
+// Initialisation de la base de données (optionnelle en mode test)
+try {
+  orm = await MikroORM.init(config);
+  em = orm.em;
+  console.log('✅ Database connected successfully');
+} catch (error) {
+  console.warn('⚠️  Database connection failed, running in test mode:', error instanceof Error ? error.message : 'Unknown error');
+}
 
 const httpApp = getApp();
 
@@ -35,10 +44,12 @@ httpApp.use(webApplicationFirewall); // WAF en premier
 httpApp.use(requestValidation);
 httpApp.use(auditLog);
 
-// Middleware pour EntityManager
+// Middleware pour EntityManager (optionnel)
 httpApp.use(async (c, next) => {
-  c.set('em', em)
-  await next()
+  if (em) {
+    c.set('em', em as any);
+  }
+  await next();
 })
 
 // Configuration CORS sécurisée
@@ -50,6 +61,16 @@ httpApp.use(cors({
 
 // Route pour les statistiques WAF (admin seulement)
 httpApp.get('/admin/waf-stats', wafStats);
+
+// Route de health check simple
+httpApp.get('/health', (c) => {
+  return c.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    database: em ? 'connected' : 'disconnected',
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // Enregistrement des routes
 const app = registerAppRoutes(httpApp);

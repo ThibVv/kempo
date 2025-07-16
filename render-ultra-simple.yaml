@@ -1,0 +1,29 @@
+services:
+  # Backend uniquement pour test
+  - type: web
+    name: kempo-backend-test
+    env: node
+    region: frankfurt
+    plan: starter
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: ENCRYPTION_SALT
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+    healthCheckPath: /health

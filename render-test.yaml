@@ -1,0 +1,34 @@
+services:
+  # Backend seulement pour test
+  - type: web
+    name: kempo-backend-test
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: ENCRYPTION_SALT
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: MAILJET_API_KEY
+        value: "test_key"
+      - key: MAILJET_SECRET_KEY
+        value: "test_secret"
+      # Pas de base de données pour ce test
+      - key: DATABASE_URL
+        value: "mysql://test:test@localhost/test"
+    healthCheckPath: /health
