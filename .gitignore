@@ -47,6 +47,8 @@ logs
 
 # Coverage directory used by tools like istanbul
 coverage/
+*/coverage/
+.nyc_output/
 
 # TypeScript cache
 *.tsbuildinfo
