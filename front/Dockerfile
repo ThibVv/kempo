@@ -19,25 +19,17 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine AS production
 
+# Install wget for health check
+RUN apk --no-cache add wget
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built application
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-
 # Set ownership
-RUN chown -R nodejs:nodejs /usr/share/nginx/html
-RUN chown -R nodejs:nodejs /var/cache/nginx
-RUN chown -R nodejs:nodejs /var/log/nginx
-RUN chown -R nodejs:nodejs /etc/nginx/conf.d
-RUN chown -R nodejs:nodejs /etc/nginx/nginx.conf
-
-# Switch to non-root user
-USER nodejs
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
 # Expose port
 EXPOSE 8080
