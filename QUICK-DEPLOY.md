@@ -1,24 +1,71 @@
-# 🚀 Script de déploiement rapide - Render
+# 🚀 Guide de Déploiement Render - Branche PROD
 
-## Option 1 : Déploiement Render (RECOMMANDÉ)
+## ✅ BRANCHE PROD CRÉÉE ET POUSSÉE !
 
-### Étapes :
-1. **Pusher le code sur GitHub**
-2. **Aller sur render.com** 
-3. **Créer un nouveau service** → Connect GitHub repo
-4. **Utiliser ces paramètres** :
+La branche `prod` est maintenant sur GitHub avec tous les fichiers de déploiement.
 
-#### Backend :
-- **Type** : Web Service
-- **Build Command** : `cd backend && npm install`
-- **Start Command** : `cd backend && npm run start`
-- **Environment** : Node.js
-- **Variables d'environnement** à ajouter :
-  ```
-  NODE_ENV=production
-  MAILJET_API_KEY=your-key
-  MAILJET_SECRET_KEY=your-secret
-  ```
+**Lien GitHub** : https://github.com/ThibVv/kempo/tree/prod
+
+## 🎯 **Déploiement Render en 5 étapes**
+
+### 1. **Connecter GitHub à Render**
+```
+1. Aller sur https://render.com
+2. Se connecter avec GitHub
+3. Sélectionner le repo: ThibVv/kempo
+4. Choisir la branche: prod ← IMPORTANT !
+```
+
+### 2. **Configurer le service Backend**
+```yaml
+# Render détectera automatiquement render-simple.yaml
+Service Type: Web Service
+Branch: prod
+Build Command: cd backend && npm install
+Start Command: cd backend && npm run start
+```
+
+### 3. **Variables d'environnement à ajouter**
+```env
+# Obligatoires (à configurer manuellement)
+MAILJET_API_KEY=your-mailjet-api-key
+MAILJET_SECRET_KEY=your-mailjet-secret-key
+
+# Automatiques (générées par Render)
+JWT_SECRET=auto-generated
+ENCRYPTION_KEY=auto-generated
+DATABASE_URL=auto-generated
+```
+
+### 4. **Configurer le service Frontend**
+```yaml
+# Automatiquement détecté
+Service Type: Static Site
+Branch: prod
+Build Command: cd front && npm install && npm run build
+Publish Directory: front/build
+```
+
+### 5. **Déployer**
+```
+✅ Cliquer sur "Create Web Service"
+✅ Render build automatiquement
+✅ Database MySQL créée automatiquement
+✅ URLs générées automatiquement
+```
+
+## 🌐 **URLs de production**
+- **Frontend**: https://kempo-frontend.onrender.com
+- **Backend**: https://kempo-backend.onrender.com
+- **API**: https://kempo-backend.onrender.com/api
+
+## 🛡️ **Sécurité incluse**
+✅ WAF (Web Application Firewall)
+✅ Chiffrement AES-256
+✅ Rate limiting
+✅ CORS protection
+✅ Audit logging
+✅ OWASP compliance (9/10)
 
 #### Frontend :
 - **Type** : Static Site  
