@@ -24,12 +24,18 @@ let orm: MikroORM | null = null;
 let em: EntityManager | null = null;
 
 // Initialisation de la base de données (optionnelle en mode test)
-try {
-  orm = await MikroORM.init(config);
-  em = orm.em;
-  console.log('✅ Database connected successfully');
-} catch (error) {
-  console.warn('⚠️  Database connection failed, running in test mode:', error instanceof Error ? error.message : 'Unknown error');
+const hasDbConfig = process.env.DATABASE_URL || (process.env.DB_PASSWORD && process.env.DB_HOST);
+
+if (hasDbConfig) {
+  try {
+    orm = await MikroORM.init(config);
+    em = orm.em;
+    console.log('✅ Database connected successfully');
+  } catch (error) {
+    console.warn('⚠️  Database connection failed, running in test mode:', error instanceof Error ? error.message : 'Unknown error');
+  }
+} else {
+  console.warn('⚠️  No database configuration found, running in test mode without database');
 }
 
 const httpApp = getApp();

@@ -71,16 +71,28 @@ export class ConfigService {
   private validateConfiguration(): void {
     const requiredInProduction = [
       'JWT_SECRET',
-      'ENCRYPTION_KEY',
+      'ENCRYPTION_KEY'
+    ];
+
+    // Variables optionnelles (avec avertissement)
+    const optionalInProduction = [
       'DB_PASSWORD',
       'MAILJET_API_KEY',
       'MAILJET_SECRET_KEY'
     ];
 
     if (this.isProduction()) {
+      // Vérifier les variables obligatoires
       for (const key of requiredInProduction) {
         if (!process.env[key]) {
           throw new Error(`Missing required environment variable: ${key}`);
+        }
+      }
+
+      // Avertir pour les variables optionnelles
+      for (const key of optionalInProduction) {
+        if (!process.env[key]) {
+          console.warn(`⚠️  Optional environment variable missing: ${key}`);
         }
       }
 
