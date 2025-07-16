@@ -1,8 +1,8 @@
-name: SonarCloud Analysis
+name: SonarCloud Quality Gate
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: [ main, master, dev, 'feature/**', 'bugfix/**', 'hotfix/**' ]
   pull_request:
     branches: [ main, master, dev ]
 
