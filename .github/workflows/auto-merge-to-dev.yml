@@ -48,41 +48,58 @@ jobs:
           This PR was automatically created after all quality checks passed." >> $GITHUB_OUTPUT
 
       - name: 🔄 Create Pull Request to Dev
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.branch_info.outputs.branch_name }}
-          base: dev
-          title: ${{ steps.branch_info.outputs.pr_title }}
-          body: ${{ steps.branch_info.outputs.pr_body }}
-          labels: |
-            auto-merge
-            feature
-            ready-for-dev
-          reviewers: ThibVv
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH_NAME="${{ steps.branch_info.outputs.branch_name }}"
+          PR_TITLE="${{ steps.branch_info.outputs.pr_title }}"
+          
+          # Créer la PR avec curl (API GitHub)
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/pulls \
+            -d "{
+              \"title\": \"$PR_TITLE\",
+              \"head\": \"$BRANCH_NAME\",
+              \"base\": \"dev\",
+              \"body\": \"🤖 **Automatic merge from feature branch**\n\n**Source Branch:** \`$BRANCH_NAME\`\n**Target Branch:** \`dev\`\n**Triggered by:** SonarCloud Quality Gate success\n\n✅ **Validations passed:**\n- Feature branch tests\n- SonarCloud quality gate\n- Code quality checks\n\nThis PR was automatically created after all quality checks passed.\"
+            }"
           
       - name: 🎯 Auto-approve and Merge PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH_NAME="${{ steps.branch_info.outputs.branch_name }}"
+          
           # Attendre que la PR soit créée
           sleep 10
           
           # Récupérer le numéro de la PR
-          PR_NUMBER=$(gh pr list --head "${{ steps.branch_info.outputs.branch_name }}" --base dev --json number --jq '.[0].number')
+          PR_NUMBER=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?head=${{ github.repository_owner }}:$BRANCH_NAME&base=dev" \
+            | jq -r '.[0].number')
           
-          if [ -n "$PR_NUMBER" ]; then
+          if [ "$PR_NUMBER" != "null" ] && [ -n "$PR_NUMBER" ]; then
             echo "🔍 Found PR #$PR_NUMBER"
             
             # Auto-approuver la PR
-            gh pr review $PR_NUMBER --approve --body "✅ Auto-approved after successful SonarCloud validation"
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+              -d '{"event": "APPROVE", "body": "✅ Auto-approved after successful SonarCloud validation"}'
             
             # Merger la PR
-            gh pr merge $PR_NUMBER --squash --auto
+            curl -X PUT \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER/merge" \
+              -d '{"commit_title": "Auto-merge: '"$BRANCH_NAME"' → dev", "merge_method": "squash"}'
             
             echo "✅ PR #$PR_NUMBER merged successfully"
           else
-            echo "❌ No PR found for branch ${{ steps.branch_info.outputs.branch_name }}"
+            echo "❌ No PR found for branch $BRANCH_NAME"
             exit 1
           fi
 
