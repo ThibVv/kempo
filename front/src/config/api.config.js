@@ -1,7 +1,7 @@
 // Configuration centralisée de l'API
 const API_CONFIG = {
-  // URL de base de l'API
-  BASE_URL: "http://localhost:3001",
+  // URL de base de l'API - utilise la variable d'environnement ou localhost par défaut
+  BASE_URL: process.env.REACT_APP_API_URL || "http://localhost:3001",
     // Points d'accès de l'API
   ENDPOINTS: {
     TOURNAMENTS: "/tournaments",
