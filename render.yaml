@@ -26,12 +26,4 @@ services:
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
         value: 100
-      - key: LOG_LEVEL
-        value: info
-      - key: HOST
-        value: 0.0.0.0
-      - key: MAILJET_API_KEY
-        value: YOUR_MAILJET_API_KEY_HERE
-      - key: MAILJET_SECRET_KEY
-        value: YOUR_MAILJET_SECRET_KEY_HERE
     healthCheckPath: /health
