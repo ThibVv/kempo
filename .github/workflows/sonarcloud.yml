@@ -1,21 +1,23 @@
-name: SonarCloud Analysis
+name: SonarCloud Analysis (Legacy)
+
+# Ce workflow est maintenant intégré dans les autres pipelines
+# Conservé pour référence et tests manuels
 
 on:
-  push:
-    branches: [ main, master, dev ]
-  pull_request:
-    branches: [ main, master, dev ]
+  workflow_dispatch:  # Déclenchement manuel uniquement
+  schedule:
+    - cron: '0 2 * * 1'  # Analyse hebdomadaire le lundi à 2h
 
 jobs:
-  sonarcloud:
-    name: SonarCloud Analysis
+  sonarcloud-manual:
+    name: SonarCloud Manual Analysis
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+        fetch-depth: 0
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
