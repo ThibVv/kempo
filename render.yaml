@@ -1,7 +1,7 @@
 services:
   # Backend API Service
   - type: web
-    name: kempo-backend
+    name: kempo-app-backend
     env: node
     region: frankfurt
     plan: starter
@@ -22,7 +22,7 @@ services:
       - key: ENCRYPTION_SALT
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://kempo-frontend.onrender.com
+        value: https://kempo-app-frontend.onrender.com
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
@@ -39,7 +39,7 @@ services:
 
   # Frontend React Service
   - type: static
-    name: kempo-frontend
+    name: kempo-app-frontend
     env: node
     region: frankfurt
     plan: starter
@@ -48,7 +48,7 @@ services:
     rootDir: front
     envVars:
       - key: REACT_APP_API_URL
-        value: https://kempo-backend.onrender.com
+        value: https://kempo-app-backend.onrender.com
     routes:
       - type: rewrite
         source: /*
