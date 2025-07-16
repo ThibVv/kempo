@@ -14,11 +14,11 @@ import { SeedManager } from '@mikro-orm/seeder';
 import { UserSchema } from './entities/user.entity.ts';
 
 export default defineConfig({
-  dbName: 'kempo_db',
-  user: 'root',
-  password: 'root',
-  host: 'localhost',
-  port: 3306, // Port MySQL par défaut
+  dbName: process.env.DB_NAME || 'kempo_db',
+  user: process.env.DB_USERNAME || 'root',
+  password: process.env.DB_PASSWORD || 'root',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '3306'),
   entities: [
     Tournament, 
     Category, 

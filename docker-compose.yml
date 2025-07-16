@@ -13,9 +13,8 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-secure_database_password}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
-      - "3306:3306"
+      - "3307:3306"
     networks:
       - kempo-network
     healthcheck:
@@ -32,6 +31,7 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      DATABASE_URL: mysql://kempo_user:secure_database_password@mysql:3306/kempo_db
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: ${DB_NAME:-kempo_db}
