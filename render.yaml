@@ -11,6 +11,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_ENV
+        value: production
       - key: PORT
         value: 10000
       - key: JWT_SECRET
@@ -43,10 +45,12 @@ services:
     env: node
     region: frankfurt
     plan: starter
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm run serve
     rootDir: front
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: REACT_APP_API_URL
         value: https://kempo-app-backend.onrender.com
       - key: PORT
