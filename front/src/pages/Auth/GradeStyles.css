@@ -1,0 +1,87 @@
+/* Styles pour les grades */
+.grade-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: white;
+  margin-left: 10px;
+}
+
+.grade-white {
+  background-color: #f1f1f1;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.grade-white-yellow {
+  background: linear-gradient(to right, #f1f1f1 50%, #ffd54f 50%);
+  color: #333;
+}
+
+.grade-yellow {
+  background-color: #ffd54f;
+  color: #333;
+}
+
+.grade-yellow-orange {
+  background: linear-gradient(to right, #ffd54f 50%, #ff9800 50%);
+  color: #333;
+}
+
+.grade-orange {
+  background-color: #ff9800;
+  color: #333;
+}
+
+.grade-orange-green {
+  background: linear-gradient(to right, #ff9800 50%, #4caf50 50%);
+  color: #fff;
+}
+
+.grade-green {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.grade-green-blue {
+  background: linear-gradient(to right, #4caf50 50%, #2196f3 50%);
+  color: #fff;
+}
+
+.grade-blue {
+  background-color: #2196f3;
+  color: #fff;
+}
+
+.grade-blue-brown {
+  background: linear-gradient(to right, #2196f3 50%, #795548 50%);
+  color: #fff;
+}
+
+.grade-brown {
+  background-color: #795548;
+  color: #fff;
+}
+
+.grade-black {
+  background-color: #212121;
+  color: #fff;
+}
+
+/* Style pour le select */
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  transition: border 0.3s ease;
+  background-color: white;
+}
+
+select:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}

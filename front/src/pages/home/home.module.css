@@ -1,0 +1,52 @@
+.homeContainer {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: #f5f5f5;
+}
+
+.titleSection {
+  margin-bottom: 24px;
+}
+
+.title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.description {
+  color: #666;
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+/* Nouvelle classe pour envelopper et centrer le widget RSS */
+.rssFeedWrapper {
+  margin-left: auto;  /* Centre horizontalement */
+  margin-right: auto; /* Centre horizontalement */
+  margin-top: 40px;   /* Espace au-dessus */
+  margin-bottom: 40px;/* Espace en dessous */
+  max-width: 800px;   /* Limite la largeur max du widget, ajustez si besoin */
+  width: 100%;        /* Prend la largeur disponible jusqu'à max-width */
+}
+
+.underConstruction {
+  text-align: center;
+  padding: 30px;
+  margin-top: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+  .homeContainer {
+    padding: 15px;
+  }
+  
+  .title {
+    font-size: 24px;
+  }
+}
