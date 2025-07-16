@@ -12,6 +12,17 @@ export type AppEnv = {
   }
 
 export function getApp() {
-      const app = new OpenAPIHono<AppEnv>() ;
-    return app
+    const app = new OpenAPIHono<AppEnv>();
+    
+    // Healthcheck endpoint simple pour Render
+    app.get('/health', (c) => {
+      return c.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        environment: process.env.NODE_ENV || 'development'
+      });
+    });
+    
+    return app;
 }
