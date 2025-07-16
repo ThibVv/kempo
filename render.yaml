@@ -1,7 +1,7 @@
 services:
-  # Backend uniquement pour test
+  # Backend API Service
   - type: web
-    name: kempo-backend-test
+    name: kempo-backend
     env: node
     region: frankfurt
     plan: starter
@@ -21,9 +21,33 @@ services:
       - key: ENCRYPTION_SALT
         generateValue: true
       - key: CORS_ORIGIN
-        value: "*"
+        value: https://kempo-frontend.onrender.com
       - key: RATE_LIMIT_WINDOW_MS
         value: 900000
       - key: RATE_LIMIT_MAX_REQUESTS
         value: 100
+      - key: LOG_LEVEL
+        value: info
+      - key: HOST
+        value: 0.0.0.0
+      - key: MAILJET_API_KEY
+        value: 9763291a8f09533d6b778f61f93f7ffe
+      - key: MAILJET_SECRET_KEY
+        value: 8ea553808966d52807a76d2ced10ea48
     healthCheckPath: /health
+
+  # Frontend React Service
+  - type: static
+    name: kempo-frontend
+    env: node
+    region: frankfurt
+    plan: starter
+    buildCommand: cd front && npm ci && npm run build
+    publishDir: ./front/build
+    envVars:
+      - key: NODE_VERSION
+        value: 18.20.4
+      - key: NPM_CONFIG_LEGACY_PEER_DEPS
+        value: true
+      - key: REACT_APP_API_URL
+        value: https://kempo-backend.onrender.com
