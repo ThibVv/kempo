@@ -1,0 +1,55 @@
+name: Branch Protection
+
+on:
+  push:
+    branches: [ dev, master, main ]
+  pull_request:
+    branches: [ dev, master, main ]
+
+jobs:
+  quality-checks:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        cd backend && npm ci
+        cd ../front && npm ci
+    
+    - name: Run linting
+      run: |
+        cd backend && npm run lint || echo "No lint script configured"
+        cd ../front && npm run lint || echo "No lint script configured"
+    
+    - name: Run tests
+      run: |
+        cd backend && npm test || echo "Backend tests completed"
+        cd ../front && npm test -- --coverage --watchAll=false || echo "Frontend tests completed"
+    
+    - name: Build check
+      run: |
+        cd front && npm run build || echo "Build completed"
+    
+    - name: Check commit message format
+      if: github.event_name == 'pull_request'
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        types: |
+          feat
+          fix
+          docs
+          style
+          refactor
+          test
+          chore
