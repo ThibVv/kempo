@@ -1,0 +1,102 @@
+name: 🔄 Auto-merge Feature to Dev
+
+on:
+  workflow_run:
+    workflows: ["SonarCloud Quality Gate"]
+    types: [completed]
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-merge-to-dev:
+    name: 🔄 Auto-merge to Dev
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📊 Get Branch Info
+        id: branch_info
+        run: |
+          BRANCH_NAME="${{ github.event.workflow_run.head_branch }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "pr_title=Auto-merge: $BRANCH_NAME → dev" >> $GITHUB_OUTPUT
+          echo "pr_body=🤖 **Automatic merge from feature branch**
+
+          **Source Branch:** \`$BRANCH_NAME\`
+          **Target Branch:** \`dev\`
+          **Triggered by:** SonarCloud Quality Gate success
+          
+          ✅ **Validations passed:**
+          - Feature branch tests
+          - SonarCloud quality gate
+          - Code quality checks
+          
+          This PR was automatically created after all quality checks passed." >> $GITHUB_OUTPUT
+
+      - name: 🔄 Create Pull Request to Dev
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.branch_info.outputs.branch_name }}
+          base: dev
+          title: ${{ steps.branch_info.outputs.pr_title }}
+          body: ${{ steps.branch_info.outputs.pr_body }}
+          labels: |
+            auto-merge
+            feature
+            ready-for-dev
+          reviewers: ThibVv
+          
+      - name: 🎯 Auto-approve and Merge PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Attendre que la PR soit créée
+          sleep 10
+          
+          # Récupérer le numéro de la PR
+          PR_NUMBER=$(gh pr list --head "${{ steps.branch_info.outputs.branch_name }}" --base dev --json number --jq '.[0].number')
+          
+          if [ -n "$PR_NUMBER" ]; then
+            echo "🔍 Found PR #$PR_NUMBER"
+            
+            # Auto-approuver la PR
+            gh pr review $PR_NUMBER --approve --body "✅ Auto-approved after successful SonarCloud validation"
+            
+            # Merger la PR
+            gh pr merge $PR_NUMBER --squash --auto
+            
+            echo "✅ PR #$PR_NUMBER merged successfully"
+          else
+            echo "❌ No PR found for branch ${{ steps.branch_info.outputs.branch_name }}"
+            exit 1
+          fi
+
+      - name: 🧹 Cleanup Feature Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Supprimer la branche feature après merge réussi
+          git push origin --delete "${{ steps.branch_info.outputs.branch_name }}"
+          echo "🗑️ Feature branch ${{ steps.branch_info.outputs.branch_name }} deleted"
+
+      - name: 📢 Success Notification
+        run: |
+          echo "🎉 **Auto-merge completed successfully!**"
+          echo "✅ Feature branch merged to dev"
+          echo "🗑️ Feature branch cleaned up"
+          echo "🚀 Ready for next development cycle"
