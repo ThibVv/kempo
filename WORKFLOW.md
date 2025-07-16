@@ -1,11 +1,10 @@
-# Workflow de développement - Projet Kempo
 
 # Workflow de développement - Projet Kempo
 
 ## 🎯 Workflow CI/CD Automatisé
 
 ### 🔄 Pipeline Feature Branches
-Dès qu'un commit est fait sur une branche `feature/`, `bugfix/`, `hotfix/`, ou `refactor/` :
+Dès qu'un commit est fait sur une branche `feature/`
 
 1. **📦 Validation des dépendances** :
    - Installation des dépendances backend/frontend
