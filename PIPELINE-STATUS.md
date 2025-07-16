@@ -11,11 +11,6 @@ Cette branche contient les workflows CI/CD professionnels suivants :
 - **pr-validation.yml** : Validation rapide des Pull Requests
 - **sonarcloud.yml** : Analyse SonarCloud continue
 
-### ❌ Workflows Supprimés
-- ~~feature-pipeline.yml~~ : Remplacé par ci-feature.yml
-- ~~test-dev.yml~~ : Workflow de test temporaire supprimé
-- ~~test-simple.yml~~ : Workflow de test temporaire supprimé
-
 ## 🎯 Prochaines Étapes
 
 1. Ce commit devrait déclencher **ci-feature.yml**
