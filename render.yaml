@@ -5,8 +5,9 @@ services:
     env: node
     region: frankfurt
     plan: starter
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm run start
+    buildCommand: npm install
+    startCommand: npm run start
+    rootDir: backend
     envVars:
       - key: NODE_ENV
         value: production
@@ -37,13 +38,14 @@ services:
     healthCheckPath: /health
 
   # Frontend React Service
-  - type: web
+  - type: static
     name: kempo-frontend
     env: static
     region: frankfurt
     plan: starter
-    buildCommand: cd front && npm install && npm run build
-    staticPublishPath: ./front/build
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    rootDir: front
     envVars:
       - key: REACT_APP_API_URL
         value: https://kempo-backend.onrender.com
