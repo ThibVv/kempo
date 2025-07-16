@@ -89,29 +89,3 @@ jobs:
           echo "| Quality Gate | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **SonarCloud Report:** https://sonarcloud.io/project/overview?id=ThibVv_kempo" >> $GITHUB_STEP_SUMMARY
-        npm ci
-    
-    - name: Install Frontend Dependencies
-      run: |
-        cd front
-        npm ci
-    
-    - name: Run Backend Tests with Coverage
-      run: |
-        cd backend
-        npm run test:coverage || echo "Backend tests completed"
-    
-    - name: Run Frontend Tests with Coverage
-      run: |
-        cd front
-        npm run test:coverage || echo "Frontend tests completed"
-    
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        args: >
-          -Dsonar.projectKey=ThibVv_kempo
-          -Dsonar.organization=thibvv
