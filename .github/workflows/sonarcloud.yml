@@ -1,0 +1,79 @@
+name: SonarCloud Analysis
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master, dev ]
+
+jobs:
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v3
+      with:
+        version: 8
+        run_install: false
+    
+    - name: Cache Backend Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          backend/node_modules
+          ~/.pnpm-store
+        key: ${{ runner.os }}-backend-pnpm-${{ hashFiles('backend/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-backend-pnpm-
+    
+    - name: Cache Frontend Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          front/node_modules
+          ~/.npm
+        key: ${{ runner.os }}-frontend-npm-${{ hashFiles('front/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-frontend-npm-
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        pnpm install --no-frozen-lockfile
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd front
+        npm ci
+    
+    - name: Run Backend Tests with Coverage
+      run: |
+        cd backend
+        pnpm run test:coverage || echo "Backend tests completed"
+    
+    - name: Run Frontend Tests with Coverage
+      run: |
+        cd front
+        npm run test:coverage || echo "Frontend tests completed"
+    
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        args: >
+          -Dsonar.projectKey=ThibVv_kempo
+          -Dsonar.organization=thibvv

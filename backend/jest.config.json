@@ -1,0 +1,39 @@
+{
+  "preset": "ts-jest",
+  "testEnvironment": "node",
+  "transform": {
+    "^.+\\.ts$": ["ts-jest", {
+      "tsconfig": "tsconfig.jest.json"
+    }]
+  },
+  "roots": ["<rootDir>/src"],
+  "testMatch": [
+    "**/__tests__/**/*.ts",
+    "**/?(*.)+(spec|test).ts"
+  ],
+  "collectCoverageFrom": [
+    "src/**/*.ts",
+    "!src/**/*.d.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.spec.ts",
+    "!src/main.ts",
+    "!src/mikro-orm.config.ts",
+    "!src/migrations/**",
+    "!src/seeders/**",
+    "!src/utils/mailjet.ts"
+  ],
+  "coverageDirectory": "coverage",
+  "coverageReporters": [
+    "text",
+    "lcov",
+    "html"
+  ],
+  "coverageThreshold": {
+    "global": {
+      "branches": 0,
+      "functions": 0,
+      "lines": 0,
+      "statements": 0
+    }
+  }
+}

@@ -1,0 +1,54 @@
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  
+  .actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  /* Styles améliorés pour les cases à cocher */
+  .gradeCheckboxContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .checkboxRow {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+
+  .checkboxRow input[type="checkbox"] {
+    margin-right: 10px;
+    width: 18px;
+    height: 18px;
+    position: relative;
+    top: 0;
+    vertical-align: middle;
+  }
+
+  .checkboxRow label {
+    display: inline-block;
+    vertical-align: middle;
+  }

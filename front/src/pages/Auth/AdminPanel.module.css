@@ -1,0 +1,252 @@
+.adminPanel {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.header {
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #007bff;
+}
+
+.header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.4em;
+}
+
+.header p {
+  margin: 5px 0 0 0;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+}
+
+.error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  border: 1px solid #f5c6cb;
+}
+
+.success {
+  background: #d4edda;
+  color: #155724;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  border: 1px solid #c3e6cb;
+}
+
+.actions {
+  margin-bottom: 20px;
+}
+
+.createButton {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.createButton:hover {
+  background: #0056b3;
+}
+
+.createForm {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.createForm h4 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.formRow {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.formGroup {
+  flex: 1;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 5px;
+  color: #333;
+  font-weight: 500;
+}
+
+.formGroup input,
+.formGroup select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.formGroup input:focus,
+.formGroup select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.formActions {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+}
+
+.submitButton {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s ease;
+}
+
+.submitButton:hover {
+  background: #218838;
+}
+
+.adminsList {
+  margin-top: 30px;
+  overflow-x: auto; /* Permet le scroll horizontal si nécessaire */
+}
+
+.adminsList h4 {
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.adminsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  table-layout: fixed; /* Force le tableau à respecter la largeur définie */
+}
+
+.adminsTable th,
+.adminsTable td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 0;
+}
+
+.adminsTable th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+.adminsTable tr:hover {
+  background: #f8f9fa;
+}
+
+.deleteButton {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.3s ease;
+}
+
+.deleteButton:hover {
+  background: #c82333;
+}
+
+/* Styles pour l'approbation des membres */
+.approveButton {
+  background: #ffc107;
+  color: #212529;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  margin-right: 8px;
+  transition: background 0.3s ease;
+}
+
+.approveButton:hover {
+  background: #e0a800;
+}
+
+.approvedBadge {
+  color: #28a745;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.pendingBadge {
+  color: #ffc107;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .formRow {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .adminPanel {
+    margin: 10px;
+    padding: 15px;
+  }
+  
+  .adminsTable {
+    font-size: 14px;
+    min-width: 100%;
+  }
+  
+  .adminsTable th,
+  .adminsTable td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .adminsList {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

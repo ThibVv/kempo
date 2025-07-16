@@ -1,0 +1,1107 @@
+import type { Context } from "hono";
+import { getApp } from "../../api/get-app.ts";
+import { AgeGroup } from "../../entities/age-group.entity.ts";
+import { Category, EnumEliminationType } from "../../entities/Category.entity.ts";
+import { Competitor } from "../../entities/Competitor.entity.ts";
+import { Match } from "../../entities/match.entity.ts";
+import { TournamentCompetitorCategory } from "../../entities/tournament-competitor-category.entity.ts";
+import { Tournament } from "../../entities/Tournament.entity.ts";
+import { User } from "../../entities/user.entity.ts";
+import { TournamentsRoutes } from "./tournaments.openapi.ts";
+import { CompetitorSchema } from "../../competitors/adapter-rest/competitors.schema.ts";
+import type { Bracket } from "../../matches/adapter-rest/matches.schema.ts";
+import { WeightCategory } from "../../entities/weight-category.ts";
+import jwt from 'jsonwebtoken';
+import type { RequestContext } from "@mikro-orm/core";
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// Fonction utilitaire pour créer des matchs de poules
+function createPoolMatches(competitors: Competitor[], category: Category, ctx: Context, poolNumber: string = "1") {
+    const em = ctx.get("em");
+    const matches = [];
+    
+    for (let i = 0; i < competitors.length; i++) {
+        for (let j = i + 1; j < competitors.length; j++) {
+            const match = em.create(Match, {
+                competitor1: competitors[i],
+                competitor2: competitors[j],
+                category: category.id,
+                pool_number: poolNumber
+            });
+            matches.push(match);
+        }
+    }
+    
+    return em.persistAndFlush(matches);
+}
+
+// Fonction utilitaire pour créer un bracket complet
+function createFullBracket(competitors: Competitor[], category: Category, ctx: Context) {
+    const em = ctx.get("em");
+    const matches = [];
+    
+    // Logique simplifiée pour créer un bracket
+    for (let i = 0; i < competitors.length; i += 2) {
+        if (i + 1 < competitors.length) {
+            const match = em.create(Match, {
+                competitor1: competitors[i],
+                competitor2: competitors[i + 1],
+                category: category.id,
+                pool_number: "1"
+            });
+            matches.push(match);
+        }
+    }
+    
+    return em.persistAndFlush(matches);
+}
+
+
+export function buildTournamentsRouter() {
+    const router = getApp()
+
+    return router.openapi(TournamentsRoutes.get, async (ctx) => {
+        const { id } = ctx.req.valid('param')
+        const em = ctx.get("em");
+        const result = await em.findOne(Tournament, { id })
+        if (result == null) {
+            return ctx.text("Not found", 404);
+        }
+
+        return ctx.json({
+            id: result.id,
+            name: result.name,
+            description: result.description,
+            city: result.city,
+            club: result.club,
+            createdBy: result.createdBy,
+            start_date: result.start_date.toISOString(),
+            end_date: result.end_date?.toISOString(),
+            registration_deadline: result.registration_deadline?.toISOString(),
+            minAge: result.minAge,
+            maxAge: result.maxAge,
+            minWeight: result.minWeight,
+            maxWeight: result.maxWeight,
+            allowedGrades: result.allowedGrades,
+            gender: result.gender as 'M' | 'F' | 'MIXED' | undefined,
+            maxParticipants: result.maxParticipants,
+            system: result.system,
+            status: result.status,
+            createdAt: result.createdAt.toISOString(),
+            updatedAt: result.updatedAt.toISOString()
+        }, 200)
+    })
+        .openapi(TournamentsRoutes.post, async (ctx) => {
+            const body = ctx.req.valid("json")
+
+            const em = ctx.get("em");
+            const result = em.create(Tournament, {
+                name: body.name,
+                city: body.city,
+                start_date: body.start_date,
+                end_date: body.end_date,
+                club: 'default_club', // Valeur par défaut temporaire
+                createdBy: 1, // Valeur par défaut temporaire
+                status: 'OPEN',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            })
+
+            await em.persistAndFlush(result);
+
+            return ctx.text("Tournament created", 201);
+        })
+        .openapi(TournamentsRoutes.put, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const body = ctx.req.valid('json');
+
+            const em = ctx.get("em");
+            const result = await em.findOne(Tournament, { id })
+            if (result == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            result.name = body.name ?? result.name
+            result.city = body.city ?? result.city
+            result.start_date = body.start_date ?? result.start_date
+            result.end_date = body.end_date ?? result.end_date
+
+
+            await em.flush();
+
+            return ctx.text("Tournament updated", 201);
+        })
+        .openapi(TournamentsRoutes.list, async (ctx) => {
+            const query = ctx.req.valid('query')
+
+            const em = ctx.get("em");
+            const result = await em.find(Tournament, query);
+            
+            const mappedResult = result.map(tournament => ({
+                id: tournament.id,
+                name: tournament.name,
+                description: tournament.description,
+                city: tournament.city,
+                club: tournament.club,
+                createdBy: tournament.createdBy,
+                start_date: tournament.start_date.toISOString(),
+                end_date: tournament.end_date?.toISOString(),
+                registration_deadline: tournament.registration_deadline?.toISOString(),
+                minAge: tournament.minAge,
+                maxAge: tournament.maxAge,
+                minWeight: tournament.minWeight,
+                maxWeight: tournament.maxWeight,
+                allowedGrades: tournament.allowedGrades,
+                gender: tournament.gender as 'M' | 'F' | 'MIXED' | undefined,
+                maxParticipants: tournament.maxParticipants,
+                system: tournament.system,
+                status: tournament.status,
+                createdAt: tournament.createdAt.toISOString(),
+                updatedAt: tournament.updatedAt.toISOString()
+            }));
+            
+            return ctx.json(mappedResult, 200)
+        })
+        .openapi(TournamentsRoutes.delete, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            console.log('Tentative de suppression du tournoi avec ID:', id);
+            
+            const em = ctx.get("em");
+            const result = await em.findOne(Tournament, { id })
+
+            if (result == null) {
+                console.log('Tournoi non trouvé:', id);
+                return ctx.text("Not found", 404);
+            }
+            
+            console.log('Tournoi trouvé, suppression en cours...', result.name);
+            
+            try {
+                // Récupérer les catégories du tournoi pour supprimer les matchs associés
+                const categories = await em.find(Category, { tournament: id });
+                console.log('Catégories trouvées:', categories.length);
+                
+                // Supprimer les matchs de chaque catégorie
+                for (const category of categories) {
+                    await em.nativeDelete(Match, { category: category.id });
+                    console.log('Matchs supprimés pour la catégorie:', category.id);
+                }
+                
+                // Supprimer les catégories associées
+                await em.nativeDelete(Category, { tournament: id });
+                console.log('Catégories supprimées pour le tournoi:', id);
+                
+                // Supprimer les relations dans la table pivot
+                await em.nativeDelete(TournamentCompetitorCategory, { tournament: id });
+                console.log('Relations tournoi-compétiteur supprimées pour le tournoi:', id);
+                
+                // Enfin supprimer le tournoi
+                await em.nativeDelete(Tournament, { id });
+                console.log('Tournoi supprimé avec succès:', id);
+                
+                return ctx.text("Tournament Deleted", 202);
+            } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                return ctx.text("Error deleting tournament", 500);
+            }
+        })
+        .openapi(TournamentsRoutes.addCompetitor, async (ctx) => {
+            const { id, competitorId } = ctx.req.valid('param')
+
+
+
+            const em = ctx.get("em");
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+
+                return ctx.text("Tournament not found", 404);
+            }
+
+            const competitor = await em.findOne(Competitor, { id: competitorId })
+            if (competitor == null) {
+                return ctx.text("Competitor not found", 404);
+            }
+
+
+            if (tournament.competitors.contains(competitor)) {
+                return ctx.text("Competitor already in tournament", 409);
+            }
+
+            tournament.competitors.add(competitor)
+
+            await em.flush()
+
+            return ctx.text("Competitor added to tournament", 201)
+        })
+        .openapi(TournamentsRoutes.deleteCompetitor, async (ctx) => {
+            const { id,idCompetitor } = ctx.req.valid('param')
+
+
+            const em = ctx.get("em");
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            const competitor = await em.findOne(Competitor, { id: idCompetitor })
+            if (competitor == null) {
+                return ctx.text("Competitor not found", 404);
+            }
+
+            const tournamentCompetitor = await em.findOne(TournamentCompetitorCategory, { tournament: id, competitor: idCompetitor })
+            if (tournamentCompetitor == null) {
+                return ctx.text("Competitor not in tournament", 404);
+            }
+
+            if (tournamentCompetitor.category != null) {
+                return ctx.text("Competitor already assigned to category", 409);
+            }
+
+             em.nativeDelete(TournamentCompetitorCategory, { tournament: id, competitor: idCompetitor })
+
+            return ctx.text("Competitor removed from tournament", 202)
+        })
+        .openapi(TournamentsRoutes.getCompetitors, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em");
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            return ctx.json(
+                tournament.competitors
+                , 200)
+        })
+        .openapi(TournamentsRoutes.createCategory, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const body = ctx.req.valid('json')
+
+            const em = ctx.get("em");
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+                return ctx.text("Not found", 404);
+            }
+            const result = em.create(Category, { ...body, tournament: id });
+
+            await em.persistAndFlush(result);
+
+
+            return ctx.text("Category created", 201);
+        })
+        .openapi(TournamentsRoutes.listCategories, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em");
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            const rawResult = await em.find(Category, { tournament: id });
+
+            const result = rawResult.map((category) => {
+                return {
+                    id: category.id,
+                    name: category.name,
+                    rank: category.rank,
+                    gender: category.gender,
+                    weight_category: category.weight_category?.id,
+                    elimination_type: category.elimination_type,
+                    age_group: category.age_group?.id
+                }
+            })
+
+
+            return ctx.json(
+                result
+                , 200)
+        })
+        .openapi(TournamentsRoutes.assignCompetitors, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const tournamentCompetitorCategory = await em.find(TournamentCompetitorCategory, { tournament: id }, { populate: ['competitor'] })
+            if (tournamentCompetitorCategory == null) {
+                return ctx.text("Not found", 404);
+            }
+            const categories = await em.find(Category, { tournament: id }, { populate: ['competitors'] })
+            if (categories == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            //console.log(categories)
+
+            for (const competitor of tournamentCompetitorCategory) {
+                if (competitor.category == null) {
+                    for (const category of categories) {
+                        console.log(category.rank, competitor.competitor.rank)
+                        console.log(category.gender, competitor.competitor.gender)
+                        if (category.rank.includes(competitor.competitor.rank)) {
+                            if (category.gender == competitor.competitor.gender || category.gender == null) {
+                                if ((category.weight_category == null) || (competitor.competitor.weight != null && category.weight_category.weight_min <= competitor.competitor.weight && category.weight_category.weight_max >= competitor.competitor.weight)) {
+                                    console.log("Competitor assigned to category")
+                                    competitor.category = category
+                                }
+
+
+                            }
+                        }
+                    }
+                }
+
+            }
+
+            await em.persistAndFlush(tournamentCompetitorCategory)
+
+
+
+            return ctx.text("Competitors assigned to categories", 200)
+        })
+        .openapi(TournamentsRoutes.assignCompetitor, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const { categoryId } = ctx.req.valid('param')
+            const body = ctx.req.valid('json')
+            const em = ctx.get("em")
+            const tournamentCompetitorCategory = await em.findOne(TournamentCompetitorCategory, { tournament: id, competitor: body.competitor_id }, { populate: ['competitor'] })
+            if (tournamentCompetitorCategory == null) {
+                return ctx.text("Not found", 404);
+            }
+            const category = await em.findOne(Category, { id: categoryId })
+            if (category == null) {
+                return ctx.text("Category not found", 404);
+            }
+            tournamentCompetitorCategory.category = category;
+            await em.persistAndFlush(tournamentCompetitorCategory)
+            return ctx.text("Competitor assigned to category", 200)
+        })
+        .openapi(TournamentsRoutes.getCategories, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const rawResult = await em.find(Category, { tournament: id }, { populate: ['competitors'] })
+            if (rawResult == null) {
+                return ctx.text("Not found", 404);
+            }
+            const result = rawResult.map((category) => {
+                return {
+                    id: category.id,
+                    name: category.name,
+                    rank: category.rank,
+                    gender: category.gender,
+                    weight_category: category.weight_category?.id,
+                    elimination_type: category.elimination_type,
+                    age_group: category.age_group?.id
+                }
+            })
+            return ctx.json(result, 200)
+        })
+        .openapi(TournamentsRoutes.deleteCategory, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id }, { populate: ['weight_category', 'age_group'] })
+            if (category == null) {
+                return ctx.text("Category not found", 404);
+            }
+            em.nativeDelete(Category, { id })
+            return ctx.text("Category deleted", 202)
+        })
+        .openapi(TournamentsRoutes.modifyCategory, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const body = ctx.req.valid('json')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id })
+            if (category == null) {
+                return ctx.text("Category not found", 404);
+            }
+            category.name = body.name ?? category.name
+            category.rank = body.rank ?? category.rank
+            category.gender = body.gender ?? category.gender
+            category.elimination_type = body.elimination_type ?? category.elimination_type
+
+            if (body.weight_category != null) {
+                const weightCategory = await em.findOne(WeightCategory, { id: body.weight_category })
+                if (weightCategory == null) {
+                    return ctx.text("Weight category not found", 404);
+                }
+                category.weight_category = weightCategory
+            }
+            if (body.age_group != null) {
+                const ageGroup = await em.findOne(AgeGroup, { id: body.age_group })
+                if (ageGroup == null) {
+                    return ctx.text("Age group not found", 404);
+                }
+                category.age_group = ageGroup
+            }
+
+            await em.persistAndFlush(category)
+            
+            return ctx.text("Category updated", 201);
+        })
+
+        .openapi(TournamentsRoutes.getCategoryCompetitors, async (ctx) => {
+            const { categoryId } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id: categoryId }, { populate: ['competitors'] })
+            if (category == null) {
+                return ctx.text("Category not found", 404);
+            }
+
+            const rawResult = await em.find(TournamentCompetitorCategory, { category: categoryId }, { populate: ['competitor'] })
+            if (rawResult == null) {
+                return ctx.text("No competitor in this category", 404);
+            }
+            const result = rawResult.map((competitor) => {
+                return {
+                    id: competitor.competitor.id,
+                    firstname: competitor.competitor.firstname,
+                    lastname: competitor.competitor.lastname,
+                    gender: competitor.competitor.gender,
+                    birthday: competitor.competitor.birthday,
+                    club: competitor.competitor.club,
+                    country: competitor.competitor.country,
+                    weight: competitor.competitor.weight,
+                    rank: competitor.competitor.rank,
+                }
+            })
+            return ctx.json(result, 200)
+
+
+        })
+        .openapi(TournamentsRoutes.startTournament, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const tournament = await em.findOne(Tournament, { id }, { populate: ['competitors'] })
+            if (tournament == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            const tournamentCompetitor = await em.find(TournamentCompetitorCategory, { tournament: id }, { populate: ['competitor'] })
+            if (tournamentCompetitor == null) {
+                return ctx.text("No competitor in this tournament", 404);
+            }
+            for (const competitor of tournamentCompetitor) {
+                if (competitor.category == null) {
+                    return ctx.text("Competitor not assigned to category", 404);
+                }
+            }
+
+            const categories = await em.find(Category, { tournament: id }, { populate: ['competitors'] })
+            if (categories == null) {
+                return ctx.text("No category in this tournament", 404);
+            }
+
+
+            for (const category of categories) {
+                const competitors = await em.find(TournamentCompetitorCategory, { category: category.id }, { populate: ['competitor'] })
+                if (category.elimination_type == EnumEliminationType.POOL) {
+                    switch (competitors.length) {
+                        case 2:
+                            return ctx.text("Not enough competitors in this category", 404);
+                            break;
+                        case 3:  //1 Pool of 3 competitors
+                        case 4:  //1 Pool of 4 competitors
+                        case 5:  //1 Pool of 5 competitors
+                        case 6:  //1 Pool of 6 competitors
+                            createPoolMatches(competitors.map(tc => tc.competitor), category, ctx)
+                            break;
+                        case 7:  //2 Pool of 4-3 competitors
+                        case 8:  //2 Pool of 4 competitors
+                        case 9:  //2 Pool of 4-5 competitors
+                            createPoolMatches(competitors.slice(0, 4).map(tc => tc.competitor), category, ctx, "1")
+                            createPoolMatches(competitors.slice(4).map(tc => tc.competitor), category, ctx, "2")
+                            break;
+
+                        case 10: //2 Pool of 5 competitors
+                            createPoolMatches(competitors.slice(0, 5).map(tc => tc.competitor), category, ctx, "1")
+                            createPoolMatches(competitors.slice(5).map(tc => tc.competitor), category, ctx, "2")
+                            break;
+                        case 11: //3 Pool of 4-4-3 competitors
+                            createPoolMatches(competitors.slice(0, 4).map(tc => tc.competitor), category, ctx, "1")
+                            createPoolMatches(competitors.slice(4, 8).map(tc => tc.competitor), category, ctx, "2")
+                            createPoolMatches(competitors.slice(8).map(tc => tc.competitor), category, ctx, "3")
+                            break;
+                        case 12: //4 Pool of 3 competitors    
+                            createPoolMatches(competitors.slice(0, 3).map(tc => tc.competitor), category, ctx, "1")
+                            createPoolMatches(competitors.slice(3, 6).map(tc => tc.competitor), category, ctx, "2")
+                            createPoolMatches(competitors.slice(6, 9).map(tc => tc.competitor), category, ctx, "3")
+                            createPoolMatches(competitors.slice(9).map(tc => tc.competitor), category, ctx, "4")
+                            break;
+                        default:
+                            return ctx.text("Too many competitors in this category", 404);
+                    }
+                } else if (category.elimination_type == EnumEliminationType.DIRECT) {
+                    createFullBracket(competitors.map(tc => tc.competitor), category, ctx);
+                }
+
+            }
+            return ctx.text("Tournament started", 200)
+
+        })
+        .openapi(TournamentsRoutes.startRankingPool, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id }, { populate: ['competitors'] })
+            if (category == null) {
+                return ctx.text("Not found", 404);
+            }
+            const matches = await em.find(Match, { category: id }, { populate: ['competitor1', 'competitor2'] })
+
+            matches.forEach((match) => {
+                if (!match.isFinished) {
+                    return ctx.text("Not all matches are finished", 404);
+                }
+            })
+
+            const competitors = await em.find(TournamentCompetitorCategory, { category: id }, { populate: ['competitor'] })
+            if (competitors == null) {
+                return ctx.text("No competitor in this category", 404);
+            }
+
+            let competitorsResult = competitors.map(tc => ({
+                ...(tc.competitor as Competitor & { score: number; pool_number: string })
+            }));
+
+            for (const competitor of competitorsResult) {
+                
+                
+                competitor.score = 0
+                
+                for (const match of matches) {
+                    
+                    if (match.winner != null) {
+                        if (match.winner.id == competitor.id ) {
+                            competitor.score += 2
+                            competitor.pool_number = match.pool_number   
+                        }else if (match.competitor1.id == competitor.id || match.competitor2.id ==competitor.id) {
+                            competitor.pool_number = match.pool_number
+                        }
+                        
+                    }else if (match.competitor1.id == competitor.id || match.competitor2.id == competitor.id) {
+                        competitor.score += 1
+                        competitor.pool_number = match.pool_number
+
+                    }
+                }
+            }
+            competitorsResult.sort((a, b) => {
+                if (a.score > b.score) return -1
+                if (a.score < b.score) return 1
+                return 0
+            })
+
+           
+    
+            const competitorsResultFiltered1 = competitorsResult.filter((competitor) => {
+                return competitor.pool_number == "1"
+            })
+            const competitorsResultFiltered2 = competitorsResult.filter((competitor) => {
+                return competitor.pool_number == "2"
+            })
+            const competitorsResultFiltered3 = competitorsResult.filter((competitor) => {
+                return competitor.pool_number == "3"
+            })
+            const competitorsResultFiltered4 = competitorsResult.filter((competitor) => {
+                return competitor.pool_number == "4"
+            })
+        
+            if (competitorsResultFiltered1.length != 0) {
+                return ctx.text("No ranking pool needing", 404)
+            }
+
+            if (competitorsResultFiltered4.length != 0) {
+                const comptop : Competitor[] = []
+                comptop.push(competitorsResultFiltered4[0])
+                comptop.push(competitorsResultFiltered3[0])
+                comptop.push(competitorsResultFiltered2[0])
+                comptop.push(competitorsResultFiltered1[0])
+
+                createPoolMatches(comptop, category, ctx, "0-1")
+
+            }else if (competitorsResultFiltered3.length != 0) {
+                const comptop : Competitor[] = []
+                comptop.push(competitorsResultFiltered3[0])
+                comptop.push(competitorsResultFiltered2[0])
+                comptop.push(competitorsResultFiltered1[0])
+
+                createPoolMatches(comptop, category, ctx, "0-1")
+
+            }else if (competitorsResultFiltered2.length != 0) {
+                const  match1 = em.create(Match, {
+                    competitor1: competitorsResultFiltered1[0],
+                    competitor2: competitorsResultFiltered1[1],
+                    category: category.id,
+                    pool_number: "0-1"
+                })
+
+                await em.persistAndFlush(match1);
+
+                const match2 = em.create(Match, {
+                    competitor1: competitorsResultFiltered1[2],
+                    competitor2: competitorsResultFiltered1[3],
+                    category: category.id,
+                    pool_number: "0-3"
+                })
+
+                await em.persistAndFlush(match2);
+            }
+
+
+
+           console.log(competitorsResultFiltered2)
+           return ctx.text("Ranking pool created", 200)
+        })
+        .openapi(TournamentsRoutes.notfinishedMatches, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id }, { populate: ['competitors'] })
+            if (category == null) {
+                return ctx.text("Not found", 404);
+            }
+            const matchesInCategory = await em.find(Match, { category: id, isFinished: false }, { populate: ['competitor1', 'competitor2'] })
+
+            if (matchesInCategory == null) {
+                return ctx.text("All matches are finished", 404);
+            }
+
+            return ctx.json(matchesInCategory.map((match) => {
+                return {
+                    id: match.id,
+                    competitor1: match.competitor1.id,
+                    competitor2: match.competitor2.id,
+                    score1: match.score1,
+                    score2: match.score2,
+                    category: match.category.id,
+                    keikuka1: match.keikuka1,
+                    keikuka2: match.keikuka2,
+                    winner: match.winner?.id ?? null,
+                    isFinished: match.isFinished,
+                    pool_number: match.pool_number
+                }
+            }), 200)
+        })
+        .openapi(TournamentsRoutes.getMatch, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const match = await em.findOne(Match, { id }, { populate: ['competitor1', 'competitor2'] })
+            if (match == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            return ctx.json({
+                id: match.id,
+                competitor1: match.competitor1?.id ?? null,
+                competitor2: match.competitor2?.id ?? null,
+                score1: match.score1, 
+                score2: match.score2,
+                category: match.category.id,
+                keikuka1: match.keikuka1,
+                keikuka2: match.keikuka2,
+                winner: match.winner?.id ?? null,
+                isFinished: match.isFinished,
+                pool_number: match.pool_number
+            }, 200)
+        })
+        .openapi(TournamentsRoutes.getMatches, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id }, { populate: ['competitors'] })
+            if (category == null) {
+                return ctx.text("Not found", 404);
+            }
+            const matches = await em.find(Match, { category: id }, { populate: ['competitor1', 'competitor2'] })
+
+            if (matches == null) {
+                return ctx.text("No matches in this category", 404);
+            }
+
+            return ctx.json(matches.map((match) => {
+                return {
+                    id: match.id,
+                    competitor1: match.competitor1?.id ?? null,
+                    competitor2: match.competitor2?.id ?? null,
+                    score1: match.score1,
+                    score2: match.score2,
+                    category: match.category.id,
+                    keikuka1: match.keikuka1,
+                    keikuka2: match.keikuka2,
+                    winner: match.winner?.id ?? null,
+                    isFinished: match.isFinished,
+                    pool_number: match.pool_number
+                }
+            }), 200)
+
+        })
+        .openapi(TournamentsRoutes.getCategoryResults, async (ctx) => {
+            const { id } = ctx.req.valid('param')
+            const em = ctx.get("em")
+            const category = await em.findOne(Category, { id }, { populate: ['competitors'] })
+            if (category == null) {
+                return ctx.text("Not found", 404);
+            }
+
+            const matches = await em.find(Match, { category: id, pool_number: ["0","0-1","0-3"] }, { populate: ['competitor1', 'competitor2'] })
+
+            matches.forEach((match) => {
+                if (!match.isFinished) {
+                    return ctx.text("Not all matches are finished", 404);
+                }
+            })
+
+            const competitors = await em.find(TournamentCompetitorCategory, { category: id }, { populate: ['competitor'] })
+            if (competitors == null) {
+                return ctx.text("No competitor in this category", 404);
+            }
+
+            if (category.elimination_type == EnumEliminationType.POOL ){
+                let competitorsResult = competitors.map(tc => ({
+                    ...(tc.competitor as Competitor & { score: number; pool_number: string })
+                }));
+    
+                for (const competitor of competitorsResult) {
+                    
+                    
+                    competitor.score = 0
+                    
+                    for (const match of matches) {
+                        
+                        if (match.winner != null) {
+                            if (match.winner.id == competitor.id ) {
+                                competitor.score += 2
+                                competitor.pool_number = match.pool_number   
+                            }else if (match.competitor1.id == competitor.id || match.competitor2.id ==competitor.id) {
+                                competitor.pool_number = match.pool_number
+                            }
+                            
+                        }else if (match.competitor1.id == competitor.id || match.competitor2.id == competitor.id) {
+                            competitor.score += 1
+                            competitor.pool_number = match.pool_number
+    
+                        }
+                    }
+                }
+                competitorsResult.sort((a, b) => {
+                    if (a.score > b.score) return -1
+                    if (a.score < b.score) return 1
+                    return 0
+                })
+    
+               
+        
+                const competitorsResultFiltered03 = competitorsResult.filter((competitor) => {
+                    return competitor.pool_number == "0-3"
+                })
+                const competitorsResultFiltered01 = competitorsResult.filter((competitor) => {
+                    return competitor.pool_number == "0-1"
+                })
+                const competitorsResultFiltered0 = competitorsResult.filter((competitor) => {
+                    return competitor.pool_number == "0"
+                })
+    
+    
+                const comptop : Competitor[] = []
+                if (competitorsResultFiltered03.length != 0) {
+                    
+                    comptop.push(competitorsResultFiltered01[0])
+                    comptop.push(competitorsResultFiltered01[1])
+                    comptop.push(competitorsResultFiltered03[0])
+
+
+                }else if (competitorsResultFiltered01.length != 0) {
+    
+                    comptop.push(competitorsResultFiltered01[0])
+                    comptop.push(competitorsResultFiltered01[1])
+                    comptop.push(competitorsResultFiltered01[2])
+                }else if (competitorsResultFiltered0.length != 0) {
+                    comptop.push(competitorsResultFiltered0[0])
+                    comptop.push(competitorsResultFiltered0[1])
+                    comptop.push(competitorsResultFiltered0[2])
+                }
+    
+    
+                const ranking = {
+                    first: comptop[0].id,
+                    second: comptop[1].id,
+                    third: comptop[2].id,
+                }
+                
+                return ctx.json(ranking, 200)
+            }else  {
+                return ctx.text("No ranking in this category", 404)
+            }
+
+
+            return ctx.text("No matches in this category", 404);
+            
+            
+
+        })
+        .openapi(TournamentsRoutes.getBracket, async (ctx) => {
+            const { id } = ctx.req.valid('param');
+            const em = ctx.get("em");
+
+            
+            const matches = await em.find(Match, { category: id }, { populate: ['competitor1', 'competitor2', 'next_match'] });
+            if (matches.length === 0) {
+                return ctx.text("No matches in this category", 404);
+            }
+
+            // Organize matches by rounds
+            const bracket: Bracket = {};
+            matches.forEach(match => {
+                const round = match.pool_number;
+                
+                const roundKey = `round-${round[round.length-1]}` as keyof Bracket;
+                if (!bracket[roundKey]) {
+                    bracket[roundKey] = [];
+                }
+                bracket[roundKey].push({
+                    id: match.id,
+                    competitor1: match.competitor1?.id ?? null,
+                    competitor2: match.competitor2?.id ?? null,
+                    winner: match.winner?.id ?? null,
+                    isFinished: match.isFinished,
+                    next_match: match.next_match ? match.next_match.id : null
+                });
+            });
+
+            return ctx.json(bracket, 200);
+        })
+        
+        // Nouvelle route pour créer un tournoi (admin de club uniquement)
+        .openapi(TournamentsRoutes.createTournamentRoute, async (ctx) => {
+            try {
+                // Authentification
+                const authHeader = ctx.req.header('Authorization');
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                    return ctx.json({ message: 'Token non fourni ou format invalide' }, 401);
+                }
+
+                const token = authHeader.split(' ')[1];
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+                const em = ctx.get('em');
+                const currentUser = await em.findOne(User, { id: decoded.id });
+
+                if (!currentUser) {
+                    return ctx.json({ message: 'Utilisateur non trouvé' }, 401);
+                }
+
+                // Vérification du rôle
+                if (currentUser.role !== 'club_admin') {
+                    return ctx.json({ message: 'Accès refusé - Vous devez être administrateur de club' }, 403);
+                }
+
+                const body = ctx.req.valid('json');
+                
+                // Créer le tournoi
+                const tournament = em.create(Tournament, {
+                    ...body,
+                    club: currentUser.club || 'default_club',
+                    createdBy: currentUser.id,
+                    status: 'OPEN',
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                });
+
+                await em.persistAndFlush(tournament);
+
+                return ctx.json({
+                    id: tournament.id,
+                    name: tournament.name,
+                    description: tournament.description,
+                    city: tournament.city,
+                    club: tournament.club,
+                    createdBy: tournament.createdBy,
+                    start_date: tournament.start_date.toISOString(),
+                    end_date: tournament.end_date?.toISOString(),
+                    registration_deadline: tournament.registration_deadline?.toISOString(),
+                    minAge: tournament.minAge,
+                    maxAge: tournament.maxAge,
+                    minWeight: tournament.minWeight,
+                    maxWeight: tournament.maxWeight,
+                    allowedGrades: tournament.allowedGrades,
+                    gender: tournament.gender,
+                    maxParticipants: tournament.maxParticipants,
+                    system: tournament.system,
+                    status: tournament.status,
+                    createdAt: tournament.createdAt.toISOString(),
+                    updatedAt: tournament.updatedAt.toISOString()
+                }, 201);
+            } catch (error) {
+                console.error('Create tournament error:', error);
+                return ctx.json({ message: 'Erreur lors de la création du tournoi' }, 500);
+            }
+        })
+        
+        // Route pour obtenir les tournois du club
+        .openapi(TournamentsRoutes.getClubTournamentsRoute, async (ctx) => {
+            try {
+                // Authentification
+                const authHeader = ctx.req.header('Authorization');
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                    return ctx.json({ message: 'Token non fourni ou format invalide' }, 401);
+                }
+
+                const token = authHeader.split(' ')[1];
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+                const em = ctx.get('em');
+                const currentUser = await em.findOne(User, { id: decoded.id });
+
+                if (!currentUser) {
+                    return ctx.json({ message: 'Utilisateur non trouvé' }, 401);
+                }
+
+                // Vérification du rôle
+                if (currentUser.role !== 'club_admin') {
+                    return ctx.json({ message: 'Accès refusé - Vous devez être administrateur de club' }, 403);
+                }
+
+                // Récupérer les tournois du club
+                const tournaments = await em.find(Tournament, { club: currentUser.club });
+
+                const response = tournaments.map((tournament: Tournament) => ({
+                    id: tournament.id,
+                    name: tournament.name,
+                    description: tournament.description,
+                    city: tournament.city,
+                    club: tournament.club,
+                    createdBy: tournament.createdBy,
+                    start_date: tournament.start_date.toISOString(),
+                    end_date: tournament.end_date?.toISOString(),
+                    registration_deadline: tournament.registration_deadline?.toISOString(),
+                    minAge: tournament.minAge,
+                    maxAge: tournament.maxAge,
+                    minWeight: tournament.minWeight,
+                    maxWeight: tournament.maxWeight,
+                    allowedGrades: tournament.allowedGrades,
+                    gender: tournament.gender,
+                    maxParticipants: tournament.maxParticipants,
+                    system: tournament.system,
+                    status: tournament.status,
+                    createdAt: tournament.createdAt.toISOString(),
+                    updatedAt: tournament.updatedAt.toISOString()
+                }));
+
+                return ctx.json(response);
+            } catch (error) {
+                console.error('Get club tournaments error:', error);
+                return ctx.json({ message: 'Erreur lors de la récupération des tournois' }, 500);
+            }
+        })
+        
+        // Route pour vérifier l'éligibilité
+        .openapi(TournamentsRoutes.checkEligibilityRoute, async (ctx) => {
+            try {
+                // Authentification
+                const authHeader = ctx.req.header('Authorization');
+                if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                    return ctx.json({ message: 'Token non fourni ou format invalide' }, 401);
+                }
+
+                const token = authHeader.split(' ')[1];
+                const decoded = jwt.verify(token, JWT_SECRET) as any;
+                const em = ctx.get('em');
+                const currentUser = await em.findOne(User, { id: decoded.id });
+
+                if (!currentUser) {
+                    return ctx.json({ message: 'Utilisateur non trouvé' }, 401);
+                }
+
+                const { id } = ctx.req.valid('param');
+                const tournament = await em.findOne(Tournament, { id });
+
+                if (!tournament) {
+                    return ctx.json({ message: 'Tournoi non trouvé' }, 404);
+                }
+
+                // Vérifier l'éligibilité
+                const eligibilityResult = await checkUserEligibility(currentUser, tournament);
+
+                return ctx.json({
+                    eligible: eligibilityResult.eligible,
+                    reasons: eligibilityResult.reasons,
+                    tournament: {
+                        id: tournament.id,
+                        name: tournament.name,
+                        description: tournament.description,
+                        city: tournament.city,
+                        club: tournament.club,
+                        start_date: tournament.start_date.toISOString(),
+                        end_date: tournament.end_date?.toISOString(),
+                        registration_deadline: tournament.registration_deadline?.toISOString(),
+                        minAge: tournament.minAge,
+                        maxAge: tournament.maxAge,
+                        minWeight: tournament.minWeight,
+                        maxWeight: tournament.maxWeight,
+                        allowedGrades: tournament.allowedGrades,
+                        gender: tournament.gender,
+                        maxParticipants: tournament.maxParticipants,
+                        system: tournament.system,
+                        status: tournament.status
+                    }
+                });
+            } catch (error) {
+                console.error('Check eligibility error:', error);
+                return ctx.json({ message: 'Erreur lors de la vérification d\'éligibilité' }, 500);
+            }
+        });
+
+// Fonction utilitaire pour vérifier l'éligibilité d'un utilisateur
+async function checkUserEligibility(user: User, tournament: Tournament) {
+    const reasons: string[] = [];
+    let eligible = true;
+
+    // Vérifier le club
+    if (user.club !== tournament.club) {
+        eligible = false;
+        reasons.push('Vous devez être membre du club organisateur');
+    }
+
+    // Vérifier l'approbation
+    if (!user.approved) {
+        eligible = false;
+        reasons.push('Votre compte doit être approuvé par l\'administrateur du club');
+    }
+
+    // Vérifier l'âge si défini
+    if (tournament.minAge !== undefined || tournament.maxAge !== undefined) {
+        if (user.birthDate) {
+            const age = new Date().getFullYear() - user.birthDate.getFullYear();
+            if (tournament.minAge !== undefined && age < tournament.minAge) {
+                eligible = false;
+                reasons.push(`Âge minimum requis: ${tournament.minAge} ans`);
+            }
+            if (tournament.maxAge !== undefined && age > tournament.maxAge) {
+                eligible = false;
+                reasons.push(`Âge maximum autorisé: ${tournament.maxAge} ans`);
+            }
+        } else {
+            eligible = false;
+            reasons.push('Date de naissance requise pour vérifier l\'âge');
+        }
+    }
+
+    // Vérifier les grades autorisés
+    if (tournament.allowedGrades && tournament.allowedGrades.length > 0) {
+        if (!user.grade || !tournament.allowedGrades.includes(user.grade)) {
+            eligible = false;
+            reasons.push(`Grades autorisés: ${tournament.allowedGrades.join(', ')}`);
+        }
+    }
+
+    // Vérifier la date limite d'inscription
+    if (tournament.registration_deadline && new Date() > tournament.registration_deadline) {
+        eligible = false;
+        reasons.push('La date limite d\'inscription est dépassée');
+    }
+
+    // Vérifier le statut du tournoi
+    if (tournament.status !== 'OPEN') {
+        eligible = false;
+        reasons.push('Le tournoi n\'est plus ouvert aux inscriptions');
+    }
+
+    return { eligible, reasons };
+}
+
+    return router;
+}
+
