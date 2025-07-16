@@ -1,0 +1,63 @@
+name: 🔍 Pull Request Validation
+
+on:
+  pull_request:
+    branches: ['*']
+
+env:
+  NODE_VERSION: '18'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # Job 1: Validation des changements
+  validate-pr:
+    name: 🔍 PR Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          
+      - name: 🔧 Install Dependencies
+        run: |
+          cd backend
+          pnpm install --frozen-lockfile
+          cd ../front
+          npm ci
+          
+      - name: 🧪 Run Tests
+        run: |
+          cd backend
+          pnpm test
+          cd ../front
+          npm test
+          
+      - name: 🏗️ Build Check
+        run: |
+          cd backend
+          npx tsc --noEmit --skipLibCheck
+          cd ../front
+          npm run build
+          
+      - name: 📝 PR Summary
+        run: |
+          echo "## 🔍 Pull Request Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | ✅ Installed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ✅ Successful |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Pull Request is ready for review!**" >> $GITHUB_STEP_SUMMARY

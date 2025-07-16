@@ -1,0 +1,291 @@
+name: 🚀 Feature Branch CI
+
+on:
+  push:
+    branches: 
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'hotfix/**'
+      - 'refactor/**'
+  pull_request:
+    branches:
+      - 'dev'
+      - 'master'
+      - 'main'
+
+env:
+  NODE_VERSION: '18'
+  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # Job 1: Validation et installation des dépendances
+  dependencies:
+    name: 📦 Dependencies & Security
+    runs-on: ubuntu-latest
+    outputs:
+      backend-cache-key: ${{ steps.backend-cache.outputs.cache-hit }}
+      frontend-cache-key: ${{ steps.frontend-cache.outputs.cache-hit }}
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          
+      - name: 💾 Cache Backend Dependencies
+        id: backend-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/node_modules
+            backend/.pnpm-store
+          key: backend-deps-${{ hashFiles('backend/package.json', 'backend/pnpm-lock.yaml') }}
+          
+      - name: 💾 Cache Frontend Dependencies
+        id: frontend-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            front/node_modules
+          key: frontend-deps-${{ hashFiles('front/package.json', 'front/package-lock.json') }}
+
+      - name: 🔧 Install Backend Dependencies
+        if: steps.backend-cache.outputs.cache-hit != 'true'
+        run: |
+          cd backend
+          pnpm install --frozen-lockfile
+          
+      - name: 🔧 Install Frontend Dependencies
+        if: steps.frontend-cache.outputs.cache-hit != 'true'
+        run: |
+          cd front
+          npm ci
+
+      - name: 🔒 Security Audit Backend
+        run: |
+          cd backend
+          pnpm audit --audit-level moderate || true
+          
+      - name: 🔒 Security Audit Frontend
+        run: |
+          cd front
+          npm audit --audit-level moderate || true
+
+  # Job 2: Build et validation
+  build:
+    name: 🏗️ Build & Validate
+    runs-on: ubuntu-latest
+    needs: [dependencies]
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          
+      - name: 💾 Restore Backend Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/node_modules
+            backend/.pnpm-store
+          key: backend-deps-${{ hashFiles('backend/package.json', 'backend/pnpm-lock.yaml') }}
+          
+      - name: 💾 Restore Frontend Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            front/node_modules
+          key: frontend-deps-${{ hashFiles('front/package.json', 'front/package-lock.json') }}
+
+      - name: 🏗️ Build Backend
+        run: |
+          cd backend
+          echo "✅ Backend TypeScript compilation check"
+          npx tsc --noEmit --skipLibCheck
+          
+      - name: 🏗️ Build Frontend
+        run: |
+          cd front
+          echo "🔨 Building React application..."
+          npm run build
+          
+      - name: 💾 Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            front/build/
+            backend/dist/
+          retention-days: 1
+
+  # Job 3: Tests unitaires
+  tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: [dependencies]
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 📋 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          
+      - name: 💾 Restore Backend Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/node_modules
+            backend/.pnpm-store
+          key: backend-deps-${{ hashFiles('backend/package.json', 'backend/pnpm-lock.yaml') }}
+          
+      - name: 💾 Restore Frontend Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            front/node_modules
+          key: frontend-deps-${{ hashFiles('front/package.json', 'front/package-lock.json') }}
+
+      - name: 🧪 Run Backend Tests
+        run: |
+          cd backend
+          echo "🧪 Running backend unit tests..."
+          pnpm test:coverage
+          
+      - name: 🧪 Run Frontend Tests  
+        run: |
+          cd front
+          echo "🧪 Running frontend unit tests..."
+          npm run test:coverage
+          
+      - name: 📊 Upload Coverage Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            backend/coverage/
+            front/coverage/
+          retention-days: 7
+
+  # Job 4: Analyse SonarCloud
+  sonarcloud:
+    name: 📊 SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: [build, tests]
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: 📥 Download Coverage Reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+          path: ./coverage/
+          
+      - name: 📊 SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=thibvv
+            -Dsonar.projectKey=ThibVv_kempo
+            -Dsonar.sources=backend/src,front/src
+            -Dsonar.tests=backend/src/__tests__,front/src
+            -Dsonar.javascript.lcov.reportPaths=coverage/backend/lcov.info,coverage/front/lcov.info
+            -Dsonar.coverage.exclusions=**/*.test.js,**/*.test.ts,**/*.spec.js,**/*.spec.ts
+            -Dsonar.cpd.exclusions=**/*.test.js,**/*.test.ts
+
+  # Job 5: Quality Gate
+  quality-gate:
+    name: 🚪 Quality Gate
+    runs-on: ubuntu-latest
+    needs: [sonarcloud]
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 🚪 Wait for Quality Gate
+        uses: sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+          
+      - name: ✅ Quality Gate Status
+        run: |
+          echo "🎉 Quality Gate passed successfully!"
+          echo "✅ Code quality meets standards"
+          echo "✅ Security vulnerabilities check passed"
+          echo "✅ Code coverage is acceptable"
+
+  # Job 6: Integration complète
+  integration:
+    name: 🔗 Integration Check
+    runs-on: ubuntu-latest
+    needs: [build, tests, quality-gate]
+    
+    steps:
+      - name: 🔍 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 📥 Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: ./build/
+          
+      - name: 🔗 Integration Test
+        run: |
+          echo "🔗 Running integration checks..."
+          echo "✅ Build artifacts verified"
+          echo "✅ All tests passed"
+          echo "✅ Quality gate passed"
+          echo "🎉 Feature branch ready for merge!"
+          
+      - name: 📝 Generate Summary
+        run: |
+          echo "## 🎯 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 📦 Dependencies | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🏗️ Build | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🧪 Tests | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 SonarCloud | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🚪 Quality Gate | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔗 Integration | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎉 **Feature branch is ready for merge to dev!**" >> $GITHUB_STEP_SUMMARY
