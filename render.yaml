@@ -37,13 +37,13 @@ services:
     healthCheckPath: /health
 
   # Frontend React Service
-  - type: static
+  - type: web
     name: kempo-frontend
-    env: node
+    env: static
     region: frankfurt
     plan: starter
     buildCommand: cd front && npm ci && npm run build
-    publishDir: ./front/build
+    staticPublishPath: ./front/build
     envVars:
       - key: NODE_VERSION
         value: 18.20.4
@@ -51,3 +51,7 @@ services:
         value: true
       - key: REACT_APP_API_URL
         value: https://kempo-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
