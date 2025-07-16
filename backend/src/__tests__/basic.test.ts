@@ -1,5 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
-
+// Simple test pour vérifier que Jest fonctionne
 describe('Backend API Tests', () => {
   it('should pass basic test', () => {
     expect(1 + 1).toBe(2);
