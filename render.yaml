@@ -40,7 +40,7 @@ services:
   # Frontend React Service
   - type: static
     name: kempo-frontend
-    env: static
+    env: node
     region: frankfurt
     plan: starter
     buildCommand: npm install && npm run build
