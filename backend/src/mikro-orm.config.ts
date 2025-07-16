@@ -13,12 +13,21 @@ import { Migrator } from '@mikro-orm/migrations';
 import { SeedManager } from '@mikro-orm/seeder';
 import { UserSchema } from './entities/user.entity.ts';
 
-export default defineConfig({
+// Configuration de la base de données
+const dbConfig = process.env.DATABASE_URL ? {
+  // Configuration avec DATABASE_URL (pour Render)
+  clientUrl: process.env.DATABASE_URL,
+} : {
+  // Configuration avec variables individuelles (pour développement local)
   dbName: process.env.DB_NAME || 'kempo_db',
   user: process.env.DB_USERNAME || 'root',
   password: process.env.DB_PASSWORD || 'root',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
+};
+
+export default defineConfig({
+  ...dbConfig,
   entities: [
     Tournament, 
     Category, 
