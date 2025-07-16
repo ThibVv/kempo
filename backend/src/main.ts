@@ -42,8 +42,11 @@ httpApp.use(async (c, next) => {
 })
 
 // Configuration CORS sécurisée
-const corsOptions = ConfigService.getCorsOptions();
-httpApp.use(cors(corsOptions));
+const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+httpApp.use(cors({
+  origin: corsOrigin,
+  credentials: true
+}));
 
 // Route pour les statistiques WAF (admin seulement)
 httpApp.get('/admin/waf-stats', wafStats);
@@ -52,7 +55,6 @@ httpApp.get('/admin/waf-stats', wafStats);
 const app = registerAppRoutes(httpApp);
 
 // Configuration du serveur
-const configService = ConfigService.getInstance();
 const port = parseInt(process.env.PORT || '3001');
 const host = process.env.HOST || '0.0.0.0';
 
