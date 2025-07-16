@@ -14,16 +14,18 @@ Cette branche contient les workflows CI/CD professionnels suivants :
 ## 🎯 Statut Actuel
 
 ### ✅ **SonarCloud CORRIGÉ** 
-- Erreur de syntaxe YAML à la ligne 92 corrigée
+- Erreur de syntaxe YAML corrigée (commentaire mal placé)
+- Configuration cache séparée pour pnpm (backend) et npm (frontend)
 - Workflow `sonarcloud.yml` reconstruit proprement 
 - Configuration complète avec tests de couverture
 - Prêt pour l'analyse de qualité
 
 ### 🔧 **Dernières Corrections**
-1. **Syntaxe YAML** : Suppression des lignes dupliquées
-2. **Structure** : Workflow propre avec 6 étapes claires
-3. **Tests** : Backend (pnpm) + Frontend (npm) avec couverture
-4. **SonarCloud** : Scan avec Quality Gate et résumé détaillé
+1. **Cache Dependencies** : Séparation pnpm/npm pour éviter les conflits
+2. **Syntaxe YAML** : Suppression du commentaire incorrect
+3. **Structure** : Workflow propre avec cache optimisé
+4. **Tests** : Backend (pnpm) + Frontend (npm) avec couverture
+5. **SonarCloud** : Scan avec Quality Gate et résumé détaillé
 
 ### 📋 **Prochaines Actions**
 1. Ce commit va déclencher **ci-feature.yml** ET **sonarcloud.yml**

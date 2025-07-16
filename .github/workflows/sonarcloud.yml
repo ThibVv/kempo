@@ -33,12 +33,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
           
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: latest
+          run_install: false
+          
+      - name: 💾 Cache Backend Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            backend/node_modules
+            backend/.pnpm-store
+          key: backend-deps-${{ hashFiles('backend/package.json', 'backend/pnpm-lock.yaml') }}
+          
+      - name: 💾 Cache Frontend Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            front/node_modules
+          key: frontend-deps-${{ hashFiles('front/package.json', 'front/package-lock.json') }}
           
       - name: 🔧 Install Backend Dependencies
         run: |
