@@ -5,8 +5,8 @@ services:
     env: node
     region: frankfurt
     plan: starter
-    buildCommand: yarn install --network-timeout 100000
-    startCommand: npx tsx src/main.ts
+    buildCommand: npm install --force
+    startCommand: npm run start
     rootDir: backend
     envVars:
       - key: NODE_ENV
@@ -43,8 +43,8 @@ services:
     env: node
     region: frankfurt
     plan: starter
-    buildCommand: yarn install --network-timeout 100000 && yarn build
-    startCommand: npx serve -s build -l 3000
+    buildCommand: npm install --force && npm run build
+    startCommand: npm run serve
     rootDir: front
     envVars:
       - key: NODE_ENV
